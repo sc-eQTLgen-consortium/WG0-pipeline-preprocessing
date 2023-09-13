@@ -1,0 +1,48 @@
+---
+####################################################################################
+##### The following arguments are for indicating file locations on your system #####
+####################################################################################
+refs:
+  ref_dir: /path/to/transcriptome/dir ### This is the path to the directory containing the transcriptome files
+
+inputs:
+  singularity_image: /path/to/singularity/image.sif ### The complete path to the singularity image that has all the softwares
+  bind_path: /path/to/bind/to/mount ### List of paths to bind to Singularity. You can specify multiple directories by adding a "," between them. Eg. ${DIRECTORY1},${DIRECTORY2}
+  samplesheet_filepath: /path/to/sample/metadata/file.tsv ### tab separated file that has a header. Each line has a pool name used for the scRNA-seq directories and the number of individuals in each pool
+  fastqs: /path/to/10x/fastq/dir ### This is the path to the directory containing the 10x fastq files
+
+outputs: 
+  output_dir: /path/to/parent/out/dir ### The path to the parent dir where you would like all outputs/results saved. This path must exist before running.
+
+settings:
+    ambient_rna_correction: False
+
+##############################################################################################################
+##### The following arguments are common parameters that may need to be changed depending on the dataset #####
+##############################################################################################################
+cellranger:
+  cellranger_mem_per_thread_gb: 16 ###
+  cellranger_disk_per_thread_gb: 16 ###
+  cellranger_threads: 2 ###
+  cellranger_time_min: 60 ###
+
+cellbender:
+  cellbender_mem_per_thread_gb: -1 ###
+  cellbender_disk_per_thread_gb: 2 ###
+  cellbender_threads: 1 ###
+  cellbender_gpu_time_min: 120 ###
+  cellbender_cpu_time_min: 1440 ###
+  cellbender_use_gpu: True ###
+  cellbender_report_mem_per_thread_gb: -1 ###
+  cellbender_report_disk_per_thread_gb: 2 ###
+  cellbender_report_threads: 1 ###
+  cellbender_report_time_min: 15 ###
+
+############################################################################################################################################
+##### The following arguments in this section should not need to be changed/edited unless the default options do not work your dataset #####
+############################################################################################################################################
+cellbender_extra:
+  cellbender_flat_memory: 3.5
+  cellbender_scaling_memory: 0.0015
+  cellbender_epochs: 150
+  cellbender_learning_rate: 1e-4
