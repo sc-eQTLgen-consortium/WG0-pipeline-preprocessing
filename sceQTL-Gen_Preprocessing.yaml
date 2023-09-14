@@ -21,10 +21,14 @@ settings:
 ##### The following arguments are common parameters that may need to be changed depending on the dataset #####
 ##############################################################################################################
 cellranger:
-  cellranger_mem_per_thread_gb: 16 ###
-  cellranger_disk_per_thread_gb: 16 ###
-  cellranger_threads: 2 ###
-  cellranger_time_min: 60 ###
+  cellranger_count_mem_per_thread_gb: 16 ###
+  cellranger_count_disk_per_thread_gb: 16 ###
+  cellranger_count_threads: 2 ###
+  cellranger_count_time_min: 60 ###
+  cellranger_aggr_mem_per_thread_gb: 32 ###
+  cellranger_aggr_disk_per_thread_gb: 32 ###
+  cellranger_aggr_threads: 4 ###
+  cellranger_aggr_time_min: 355 ###
 
 cellbender:
   cellbender_mem_per_thread_gb: -1 ###
@@ -33,10 +37,21 @@ cellbender:
   cellbender_gpu_time_min: 120 ###
   cellbender_cpu_time_min: 1440 ###
   cellbender_use_gpu: True ###
+  cellbender_epochs: 150
+  cellbender_learning_rate: 1e-4
   cellbender_report_mem_per_thread_gb: -1 ###
   cellbender_report_disk_per_thread_gb: 2 ###
   cellbender_report_threads: 1 ###
   cellbender_report_time_min: 15 ###
+
+###############################################################################################################################################
+##### The following arguments are for manually running/rerunning specific pools with specific arguments for scrublet and DoubletDetection #####
+###############################################################################################################################################
+cellbender_manual:
+  run_cellbender_manual: False ### logical whether or not to run CellBender with manual thresholding. This is only used if there are pools where the automatically chosen threshold is incorrect. In that case, you can manually select and use the below variables to assign the desired percentile and threshold
+  cellbender_manual_pools: None ### List of the pools that need manual threshold setting for scrublet. ex [Pool1,Pool7]
+  cellbender_manual_epochs: None ### List of the percentile of variable genes to use for the manual threshold setting for scrublet. Note that the location in this vector is directly relational to the scrublet_manual_threshold_pools vector. ex [85,95]
+  cellbender_manual_learning_rates: None ### List of the manually set thresholds for scrublet. Note that the location in this vector is directly relational to the scrublet_manual_threshold_pools vector. ex [0.2,0.24]
 
 ############################################################################################################################################
 ##### The following arguments in this section should not need to be changed/edited unless the default options do not work your dataset #####
@@ -44,5 +59,3 @@ cellbender:
 cellbender_extra:
   cellbender_flat_memory: 3.5
   cellbender_scaling_memory: 0.0015
-  cellbender_epochs: 150
-  cellbender_learning_rate: 1e-4
