@@ -92,6 +92,20 @@ def get_all_input(wildcards):
         # The aggregated report we want.
         input_files.append(config["outputs"]["output_dir"] + "CellRanger_aggr/outs/web_summary.html")
 
+        # Construct the file_directories.tsv file that points to the files we will use for WG1.
+        if "CellBender" not in METHODS:
+            samplesheet_data = []
+            for pool in SAMPLES["Pool"]:
+                samplesheet_data.append([
+                    pool,
+                    config["outputs"]["output_dir"] + pool + "/CellRanger_count/outs/possorted_genome_bam.bam",
+                    config["outputs"]["output_dir"] + pool + "/CellRanger_count/outs/filtered_feature_bc_matrix.h5",
+                    config["outputs"]["output_dir"] + pool + "/CellRanger_count/outs/filtered_feature_bc_matrix/barcodes.tsv.gz"
+                ])
+
+            logger.info("Saving file directories for WG1.")
+            pd.DataFrame(samplesheet_data, columns=["Pool", "Bam", "Counts", "Barcodes"]).to_csv(config["outputs"]["output_dir"] + "wg0_file_directories.tsv", sep="\t", index=False)
+
     if "CellBender" in METHODS:
         # Create the manual selection directory.
         if not os.path.isdir(config["outputs"]["output_dir"] + "manual_selections"):
@@ -117,17 +131,29 @@ def get_all_input(wildcards):
                     logger.info("ERROR: the CellBender_manual_selection.tsv does not contain the same pools as the samplesheet.")
                     exit()
 
+                samplesheet_data = []
                 for _, row in selection.iterrows():
+                    # Check if the CellRanger bam exists.
+                    cell_ranger_bam_path = config["outputs"]["output_dir"] + row["Pool"] + "/CellRanger_count/outs/possorted_genome_bam.bam"
+                    if not os.path.exists(cell_ranger_bam_path):
+                        logger.info("ERROR: the '{}/CellRanger_count/outs/possorted_genome_bam.bam' does not exist.".format(row["Pool"]))
+                        exit()
+
                     # Check if all the output files for WG1 exist in the selected output directory for this pool.
-                    if not os.path.exists(config["outputs"]["output_dir"] + row["Pool"] + "/" + row["Selection"] + "/cellbender_feature_bc_matrix_filtered.h5") or \
-                        not os.path.exists(config["outputs"]["output_dir"] + row["Pool"] + "/" + row["Selection"] + "/cellbender_feature_bc_matrix_cell_barcodes.csv"):
+                    cellbender_filtered_h5_path = config["outputs"]["output_dir"] + row["Pool"] + "/" + row["Selection"] + "/cellbender_feature_bc_matrix_filtered.h5"
+                    cellbender_filtered_barcodes_path = config["outputs"]["output_dir"] + row["Pool"] + "/" + row["Selection"] + "/cellbender_feature_bc_matrix_cell_barcodes.csv"
+                    if not os.path.exists(cellbender_filtered_h5_path) or not os.path.exists(cellbender_filtered_barcodes_path):
                         logger.info("ERROR: the '{pool}/{selection}/cellbender_feature_bc_matrix_filtered.h5' and/or '{pool}/{selection}/cellbender_feature_bc_matrix_cell_barcodes.csv' does not exist.".format(pool=row["Pool"], selection=row["Selection"]))
                         logger.info("Please check the CellBender outputs and choose the best run (see the docs).")
                         logger.info("Once you are happy with the thresholding, input the correct output directory (e.g. CellBenderDefaultRun1 / CellBenderManualRun1 etc. into the second column of the CellBender_manual_selection.tsv file and restart the snakemake pipeline.")
                         exit()
 
-                logger.info("All the CellBender results have PASSED. There is nothing more to do.")
-                exit()
+                    # Save the paths for WG1.
+                    samplesheet_data.append([row["Pool"], cell_ranger_bam_path, cellbender_filtered_h5_path, cellbender_filtered_barcodes_path])
+
+                # Save the file_directories.tsv file that points to the files we will use for WG1.
+                logger.info("All the CellBender results have PASSED. Saving file directories for WG1.")
+                pd.DataFrame(samplesheet_data, columns=["Pool", "Bam", "Counts", "Barcodes"]).to_csv(config["outputs"]["output_dir"] + "wg0_file_directories.tsv", sep="\t", index=False)
         else:
             # Manual selection file did not exist, create it.
             empty_select_df.to_csv(man_select_path, sep="\t", header=True, index=False)
