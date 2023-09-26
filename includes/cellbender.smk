@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import pandas as pd
 
 def calculate_mem_per_thread_gb(wildcards):
     """
@@ -6,14 +7,14 @@ def calculate_mem_per_thread_gb(wildcards):
      of cells and the amount of CPU RAM we need for CellBender. Using this function to define the memory reduced the overall memory usage of all jobs.
     """
     # -1 means we want to predict the memory usage.
-    if config["cellbender"]["cellbender_mem_per_thread_gb"] == -1:
+    if config["cellbender"]["cellbender_memory"] == -1:
         # Find the estimated number of cells from CellRanger.
         metrics_df = pd.read_csv(config["outputs"]["output_dir"] + wildcards.pool + "/CellRanger_count/outs/metrics_summary.csv",sep=",",header=0,index_col=None)
         estimated_number_of_cells = int(metrics_df["Estimated Number of Cells"][0].replace(",",""))
 
         # Calculate the memory usage.
         return (wildcards.attempt * config["cellbender_extra"]["cellbender_flat_memory"]) + (estimated_number_of_cells * config["cellbender_extra"]["cellbender_scaling_memory"])
-    return wildcards.attempt * config["cellbender_extra"]["cellbender_mem_per_thread_gb"]
+    return wildcards.attempt * config["cellbender"]["cellbender_memory"]
 
 rule CellBender:
     input:
@@ -31,8 +32,9 @@ rule CellBender:
         log = config["outputs"]["output_dir"] + "{pool}/CellBender{run_type}Run{run_id}/cellbender_feature_bc_matrix.log"
     resources:
         mem_per_thread_gb = calculate_mem_per_thread_gb,
-        disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellbender"]["cellbender_disk_per_thread_gb"],
-        threads = config["cellbender"]["cellbender_threads"]
+        disk_per_thread_gb = calculate_mem_per_thread_gb,
+        threads = config["cellbender"]["cellbender_threads"],
+        time = lambda wildcards, attempt: config["cluster_time"][attempt + (config["cellbender"]["cellbender_gpu_time"] if config["cellbender"]["cellbender_use_gpu"] else config["cellbender"]["cellbender_cpu_time"])]
     params:
         bind = config["inputs"]["bind_path"],
         sif = config["inputs"]["singularity_image"],
@@ -69,9 +71,10 @@ rule CellBender_report:
         latent_cell_probability = report(config["outputs"]["output_dir"] + "CellBenderCombinedResults/cell_probability.png", category = "CellBender_Summary", caption = "../report_captions/CellBender.rst"),
         gene_encoding = report(config["outputs"]["output_dir"] + "CellBenderCombinedResults/latent_gene_encoding.png", category = "CellBender", subcategory = "CellBender_Summary", caption = "../report_captions/CellBender.rst")
     resources:
-        mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellbender"]["cellbender_report_mem_per_thread_gb"],
-        disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellbender"]["cellbender_report_disk_per_thread_gb"],
-        threads = config["cellbender"]["cellbender_report_threads"]
+        mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellbender"]["cellbender_report_memory"],
+        disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellbender"]["cellbender_report_memory"],
+        threads = config["cellbender"]["cellbender_report_threads"],
+        time = lambda wildcards, attempt: config["cluster_time"][attempt + config["cellbender"]["cellbender_report_time"]]
     params:
         bind = config["inputs"]["bind_path"],
         sif = config["inputs"]["singularity_image"],

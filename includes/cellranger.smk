@@ -14,9 +14,10 @@ rule CellRanger_count:
         metrics_summary = config["outputs"]["output_dir"] + "{pool}/CellRanger_count/outs/metrics_summary.csv",
         web_summary = report(config["outputs"]["output_dir"] + "{pool}/CellRanger_count/outs/web_summary.html", category = "CellRanger", subcategory = "{pool}", caption = "../report_captions/CellRanger.rst")
     resources:
-        mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_count_mem_per_thread_gb"],
-        disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_count_disk_per_thread_gb"],
-        threads = config["cellranger"]["cellranger_count_threads"]
+        mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_count_memory"],
+        disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_count_memory"],
+        threads = config["cellranger"]["cellranger_count_threads"],
+        time = lambda wildcards, attempt: config["cluster_time"][attempt + config["cellranger"]["cellranger_count_time"]]
     params:
         out = config["outputs"]["output_dir"] + "{pool}/CellRanger_count",
         bind = config["inputs"]["bind_path"],
@@ -42,9 +43,10 @@ rule CellRanger_aggr:
         summary = config["outputs"]["output_dir"] + "/CellRanger_aggr/outs/summary.json",
         web_summary = report(config["outputs"]["output_dir"] + "CellRanger_aggr/outs/web_summary.html", category = "CellRanger", caption = "../report_captions/CellRanger.rst")
     resources:
-        mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_aggr_mem_per_thread_gb"],
-        disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_aggr_disk_per_thread_gb"],
-        threads = config["cellranger"]["cellranger_aggr_threads"]
+        mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_aggr_memory"],
+        disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_aggr_memory"],
+        threads = config["cellranger"]["cellranger_aggr_threads"],
+        time = lambda wildcards, attempt: config["cluster_time"][attempt + config["cellranger"]["cellranger_aggr_time"]]
     params:
         out = config["outputs"]["output_dir"] + "CellRanger_aggr",
         bind = config["inputs"]["bind_path"],

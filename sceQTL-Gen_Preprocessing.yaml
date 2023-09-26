@@ -21,21 +21,18 @@ settings:
 ##### The following arguments are common parameters that may need to be changed depending on the dataset #####
 ##############################################################################################################
 cellranger:
-  cellranger_count_mem_per_thread_gb: 16 ###
-  cellranger_count_disk_per_thread_gb: 16 ###
+  cellranger_count_memory: 16 ###
   cellranger_count_threads: 2 ###
-  cellranger_count_time_min: 60 ###
-  cellranger_aggr_mem_per_thread_gb: 32 ###
-  cellranger_aggr_disk_per_thread_gb: 32 ###
+  cellranger_count_timee: 60 ###
+  cellranger_aggr_memory: 32 ###
   cellranger_aggr_threads: 4 ###
-  cellranger_aggr_time_min: 355 ###
+  cellranger_aggr_time: 355 ###
 
 cellbender:
-  cellbender_mem_per_thread_gb: -1 ###
-  cellbender_disk_per_thread_gb: 2 ###
+  cellbender_memory: -1 ###
   cellbender_threads: 1 ###
-  cellbender_gpu_time_min: 120 ###
-  cellbender_cpu_time_min: 1440 ###
+  cellbender_gpu_time: 0 ###
+  cellbender_cpu_time: 1 ###
   cellbender_use_gpu: True ###
   cellbender_epochs: 150
   cellbender_learning_rate: 1e-4
