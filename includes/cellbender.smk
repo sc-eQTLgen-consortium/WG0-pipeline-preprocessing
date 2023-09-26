@@ -33,8 +33,8 @@ rule CellBender:
     resources:
         mem_per_thread_gb = calculate_mem_per_thread_gb,
         disk_per_thread_gb = calculate_mem_per_thread_gb,
-        threads = config["cellbender"]["cellbender_threads"],
         time = lambda wildcards, attempt: config["cluster_time"][attempt + (config["cellbender"]["cellbender_gpu_time"] if config["cellbender"]["cellbender_use_gpu"] else config["cellbender"]["cellbender_cpu_time"])]
+    threads: config["cellbender"]["cellbender_threads"]
     params:
         bind = config["inputs"]["bind_path"],
         sif = config["inputs"]["singularity_image"],
@@ -73,8 +73,8 @@ rule CellBender_report:
     resources:
         mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellbender"]["cellbender_report_memory"],
         disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellbender"]["cellbender_report_memory"],
-        threads = config["cellbender"]["cellbender_report_threads"],
         time = lambda wildcards, attempt: config["cluster_time"][attempt + config["cellbender"]["cellbender_report_time"]]
+    threads: config["cellbender"]["cellbender_report_threads"]
     params:
         bind = config["inputs"]["bind_path"],
         sif = config["inputs"]["singularity_image"],
