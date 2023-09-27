@@ -16,7 +16,7 @@ rule CellRanger_count:
     resources:
         mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_count_memory"],
         disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_count_memory"],
-        time = lambda wildcards, attempt: config["cluster_time"][attempt + config["cellranger"]["cellranger_count_time"]]
+        time = lambda wildcards, attempt: config["cluster_time"][(attempt - 1) + config["cellranger"]["cellranger_count_time"]]
     threads: config["cellranger"]["cellranger_count_threads"]
     params:
         out = config["outputs"]["output_dir"] + "{pool}/CellRanger_count",
@@ -45,7 +45,7 @@ rule CellRanger_aggr:
     resources:
         mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_aggr_memory"],
         disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_aggr_memory"],
-        time = lambda wildcards, attempt: config["cluster_time"][attempt + config["cellranger"]["cellranger_aggr_time"]]
+        time = lambda wildcards, attempt: config["cluster_time"][(attempt - 1) + config["cellranger"]["cellranger_aggr_time"]]
     threads: config["cellranger"]["cellranger_aggr_threads"]
     params:
         out = config["outputs"]["output_dir"] + "CellRanger_aggr",
