@@ -12,9 +12,9 @@ LABEL about.summary="WG0 sceQTLGen Consortium Prepreocessing Pipeline"
 LABEL about.documentation="https://github.com/sc-eQTLgen-consortium/WG0-pipeline-preprocessing"
 LABEL about.tags="Genomics"
 
-# Build syntax: docker build ./ -t wg0-pipeline-preprocessing:2023.11.23.0 --progress=plain > build.log 2>&1
-# Total build takes ? minutes and has a size of 8.5 GB.
-# Use dive wg0-pipeline-preprocessing:2023.11.23.0 to investigate memory usage.
+# Build syntax: docker build ./ -t wg0-pipeline-preprocessing:2023.11.28.0 --progress=plain > build.log 2>&1
+# Total build takes ? minutes and has a size of 6.66 GB.
+# Use dive wg0-pipeline-preprocessing:2023.11.28.0 to investigate memory usage.
 
 ################## MAINTAINER ######################
 
@@ -44,14 +44,19 @@ RUN apt-get update -y \
     && apt-get install -y --no-install-recommends ca-certificates \
     # libpsl5 wget
     && apt-get install -y --no-install-recommends wget \
-    && apt-get install -y --no-install-recommends git
+    # git git-man libbrotli1 libcurl3-gnutls liberror-perl libexpat1
+    # libgdbm-compat4 libgdbm6 libldap-2.5-0 libnghttp2-14 libperl5.34 librtmp1
+    # libsasl2-2 libsasl2-modules-db libssh-4 perl perl-modules-5.34
+    && apt-get install -y --no-install-recommends git \
+    # unzip
+    && apt-get install -y --no-install-recommends unzip
 
 ##################################
 ############# CELLRANGER #########
 ##################################
 
 RUN cd /opt \
-    && wget -O cellranger-7.0.1.tar.gz "https://cf.10xgenomics.com/releases/cell-exp/cellranger-7.0.1.tar.gz?Expires=1700813443&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jZi4xMHhnZW5vbWljcy5jb20vcmVsZWFzZXMvY2VsbC1leHAvY2VsbHJhbmdlci03LjAuMS50YXIuZ3oiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3MDA4MTM0NDN9fX1dfQ__&Signature=bFMW7BjMjuYttxWOJ3RiExHpU6yaQ-7~X9tQClQoJHFSuxOan5oBnOr5k7V-IyKfC5m6gMO2rRu~sn1Ti58WpUEH6zuSpSfddsefbv7nNhYk7yJIKvQV4RHc0bTQCJ3ILT0MByT3EIZ8FcVmIGp462AgkSwLT1JHv1k5ulDJMQaRsK6kEuMp1ZEQYkAo6qRV6Vc6ZcGS9h5vbupKYvCMt1RqFywqmzksQShuQ3XdGw8MOh038SkMKcGxh8A~IRqiYrYinQgOjnWJcWL5ABFCCyTno4CIM9--YxggKUF04ebQ3B-adrfCe2~iASONyq3o9IDMWdkMSOv~Pgo8QaSL3A__&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA" \
+    && wget http://regmedsrv1.wustl.edu/Public_SPACE/litd/Public_html/pkg/cellranger-7.0.1.tar.gz \
     && tar -xzvf cellranger-7.0.1.tar.gz \
     && rm cellranger-7.0.1.tar.gz
 
