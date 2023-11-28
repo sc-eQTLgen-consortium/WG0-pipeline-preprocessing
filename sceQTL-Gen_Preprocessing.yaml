@@ -2,57 +2,92 @@
 ####################################################################################
 ##### The following arguments are for indicating file locations on your system #####
 ####################################################################################
-refs:
-  ref_dir: /path/to/transcriptome/dir ### This is the path to the directory containing the transcriptome files
-
 inputs:
   singularity_image: /path/to/singularity/image.sif ### The complete path to the singularity image that has all the softwares
   bind_path: /path/to/bind/to/mount ### List of paths to bind to Singularity. You can specify multiple directories by adding a "," between them. Eg. ${DIRECTORY1},${DIRECTORY2}
-  samplesheet_filepath: /path/to/sample/metadata/file.tsv ### tab separated file that has a header. Each line has a pool name used for the scRNA-seq directories and the number of individuals in each pool
-  fastqs: /path/to/10x/fastq/dir ### This is the path to the directory containing the 10x fastq files
+  samplesheet_path: /path/to/sample/metadata/file.tsv ### tab separated file that has a header. Each line has a pool name used for the scRNA-seq directories and the number of individuals in each pool
+  fastq_dir: /path/to/10x/fastq/dir ### This is the path to the directory containing the 10x fastq files
+
+refs:
+  ref_dir: /path/to/transcriptome/dir ### This is the path to the directory containing the transcriptome files
 
 outputs: 
   output_dir: /path/to/parent/out/dir ### The path to the parent dir where you would like all outputs/results saved. This path must exist before running.
 
 settings:
-    ambient_rna_correction: False
+  ambient_rna_correction: False ### Whether or not to perform abient RNA correction
+  use_gpu: True ### Whether or not a GPU is available for ambient RNA correction
+  gpu_sbatch_settings: "" ### Fill in here the additional parameters for sbatch to submit the job to a GPU partition.
+
+cluster_time: {0: "05:59:00", 1: "23:59:00", 2: "6-23:59:00"}
 
 ##############################################################################################################
 ##### The following arguments are common parameters that may need to be changed depending on the dataset #####
 ##############################################################################################################
 cellranger:
-  cellranger_count_memory: 16 ###
-  cellranger_count_threads: 2 ###
-  cellranger_count_timee: 60 ###
+  cellranger_count_memory: 8 ###
+  cellranger_count_threads: 4 ###
+  cellranger_count_time: 0 ###
+
   cellranger_aggr_memory: 32 ###
   cellranger_aggr_threads: 4 ###
-  cellranger_aggr_time: 355 ###
+  cellranger_aggr_time: 0 ###
 
 cellbender:
   cellbender_memory: -1 ###
   cellbender_threads: 1 ###
   cellbender_gpu_time: 0 ###
   cellbender_cpu_time: 1 ###
-  cellbender_use_gpu: True ###
-  cellbender_epochs: 150
-  cellbender_learning_rate: 1e-4
-  cellbender_report_mem_per_thread_gb: -1 ###
-  cellbender_report_disk_per_thread_gb: 2 ###
-  cellbender_report_threads: 1 ###
-  cellbender_report_time_min: 15 ###
 
-###############################################################################################################################################
-##### The following arguments are for manually running/rerunning specific pools with specific arguments for scrublet and DoubletDetection #####
-###############################################################################################################################################
-cellbender_manual:
-  run_cellbender_manual: False ### logical whether or not to run CellBender with manual thresholding. This is only used if there are pools where the automatically chosen threshold is incorrect. In that case, you can manually select and use the below variables to assign the desired percentile and threshold
-  cellbender_manual_pools: None ### List of the pools that need manual threshold setting for scrublet. ex [Pool1,Pool7]
-  cellbender_manual_epochs: None ### List of the percentile of variable genes to use for the manual threshold setting for scrublet. Note that the location in this vector is directly relational to the scrublet_manual_threshold_pools vector. ex [85,95]
-  cellbender_manual_learning_rates: None ### List of the manually set thresholds for scrublet. Note that the location in this vector is directly relational to the scrublet_manual_threshold_pools vector. ex [0.2,0.24]
+  plot_cellbender_memory: 5 ###
+  plot_cellbender_threads: 1 ###
+  plot_cellbender_time: 0 ###
+
+combine_results:
+  combine_results_memory: 4 ###
+  combine_results_threads: 1 ###
+  combine_results_time: 0 ###
 
 ############################################################################################################################################
 ##### The following arguments in this section should not need to be changed/edited unless the default options do not work your dataset #####
 ############################################################################################################################################
+refs_extra:
+  transcriptome_path: "refdata-gex-GRCh38-2020-A"
+
 cellbender_extra:
-  cellbender_flat_memory: 3.5
-  cellbender_scaling_memory: 0.0015
+  flat_memory: 3.5
+  scaling_memory: 0.0015
+
+  expected_cells: null ### Number of cells expected in the dataset (a rough estimate within a factor of 2 is sufficient).
+  total_droplets_included: null ### The number of droplets from the rank-ordered UMI plot that will have their cell probabilities inferred as an output. Include the droplets which might contain cells. Droplets beyond TOTAL_DROPLETS_INCLUDED should be 'surely empty' droplets.
+  force_cell_umi_prior: null ### Ignore CellBender's heuristic prior estimation, and use this prior for UMI counts in cells.
+  force_empty_umi_prior: null ### Ignore CellBender's heuristic prior estimation, and use this prior for UMI counts in empty droplets.
+  model: "full" ### Which model is being used for count data. 'naive' subtracts the estimated ambient profile. 'simple' does not model either ambient RNA or random barcode swapping (for debugging purposes -- not recommended). 'ambient' assumes background RNA is incorporated into droplets. 'swapping' assumes background RNA comes from random  barcode swapping (via PCR chimeras). 'full' uses a combined ambient and swapping model.
+  epochs: 150 ### Number of epochs to train.
+  low_count_threshold: 5 ### Droplets with UMI counts below this number are completely excluded from the analysis.  This can help identify the correct prior for empty droplet counts in the rare case where empty counts are extremely high (over 200).
+  z_dim: 64 ### Dimension of latent variable z.
+  z_layers: [512] ### Dimension of hidden layers in the encoder for z.
+  training_fraction: 0.9 ### Training detail: the fraction of the data used for training.  The rest is never seen by the inference algorithm.  Speeds up learning.
+  empty_drop_training_fraction: 0.2 ### Training detail: the fraction of the training data each epoch that is drawn (randomly sampled) from surely empty droplets.
+  ignore_features: [] ### Integer indices of features to ignore entirely.  In the output count matrix, the counts for these features will be unchanged.
+  fpr: [0.01] ### Target 'delta' false positive rate in [0, 1). Use 0 for a cohort of samples which will be jointly analyzed for differential expression. A false positive is a true signal count that is erroneously removed.  More background removal is accompanied by more signal removal at high values of FPR.  You can specify multiple values, which will create multiple output files.
+  exclude_feature_types: [] ### Feature types to ignore during the analysis. These features will be left unchanged in the output file.
+  projected_ambient_count_threshold: 0.1 ### Controls how many features are included in the analysis, which can lead to a large speedup. If a feature is expected to have less than PROJECTED_AMBIENT_COUNT_THRESHOLD counts total in all cells (summed), then that gene is excluded, and it will be unchanged in the output count matrix.  For examplePROJECTED_AMBIENT_COUNT_THRESHOLD = 0 will include all features which have even a single count in any empty droplet.
+  learning_rate: 1e-4 ### Training detail: lower learning rate for inference. A OneCycle learning rate schedule is used, where the upper learning rate is ten times this value. (For this value, probably do not exceed 1e-3).
+  checkpoint_mins: 7. ### Checkpoint file will be saved periodically, with this many minutes between each checkpoint.
+  final_elbo_fail_fraction: null ### Training is considered to have failed if (best_test_ELBO - final_test_ELBO)/(best_test_ELBO - initial_test_ELBO) > FINAL_ELBO_FAIL_FRACTION.  Training will automatically re-run if --num-training-tries > 1.  By default, will not fail training based on final_training_ELBO.
+  epoch_elbo_fail_fraction: null ### Training is considered to have failed if (previous_epoch_test_ELBO - current_epoch_test_ELBO)/(previous_epoch_test_ELBO - initial_train_ELBO) > EPOCH_ELBO_FAIL_FRACTION.  Training will automatically re-run if --num-training-tries > 1.  By default, will not fail training based on epoch_training_ELBO.
+  num_training_tries: 1 ### Number of times to attempt to train the model. At each subsequent attempt, the learning rate is multiplied by LEARNING_RATE_RETRY_MULT.
+  learning_rate_retry_mult: 0.2 ### Learning rate is multiplied by this amount each time a new training attempt is made.  (This parameter is only used if training fails based on EPOCH_ELBO_FAIL_FRACTION or FINAL_ELBO_FAIL_FRACTION and NUM_TRAINING_TRIES is > 1.)
+  posterior_batch_size: 128 ### Training detail: size of batches when creating the posterior.  Reduce this to avoid running out of GPU memory creating the posterior (will be slower).
+  alpha: null ### Tunable parameter alpha for the PRq posterior regularization method (not normally used: see documentation).
+  q: null ### Tunable parameter q for the CDF threshold estimation method (not normally used: see documentation).
+  estimator_multiple_cpu: False ### Including the flag --estimator-multiple-cpu will use more than one CPU to compute the MCKP output count estimator in parallel (does nothing for other estimators).
+  constant_learning_rate: False ### Including the flag --constant-learning-rate will use the ClippedAdam optimizer instead of the OneCycleLR learning rate schedule, which is the default.  Learning is faster with the OneCycleLR schedule.  However, training can easily be continued from a checkpoint for more epochs than the initial command specified when using ClippedAdam.  On the other hand, if using the OneCycleLR schedule with 150 epochs specified, it is not possible to pick up from that final checkpoint and continue training until 250 epochs.
+  debug: False ### Including the flag --debug will log extra messages useful for debugging.
+
+  max_plots_per_page: 5 ### The number of lanes to plot on a single image
+
+settings_extra:
+  memory_buffer: 1 ### Buffer to prevent memory overflow, available memory is reduced by this amount in GB
+
