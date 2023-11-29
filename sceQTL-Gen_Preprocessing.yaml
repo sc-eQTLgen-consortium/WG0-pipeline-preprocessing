@@ -29,7 +29,7 @@ cellranger:
   cellranger_count_threads: 4 ###
   cellranger_count_time: 0 ###
 
-  cellranger_aggr_memory: 32 ###
+  cellranger_aggr_memory: 8 ###
   cellranger_aggr_threads: 4 ###
   cellranger_aggr_time: 0 ###
 

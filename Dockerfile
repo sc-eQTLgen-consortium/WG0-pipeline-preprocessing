@@ -100,6 +100,7 @@ RUN eval "$(command conda 'shell.bash' 'hook' 2> /dev/null)" \
     # charset-normalizer-3.3.2 idna-3.4 pillow-9.5.0 requests-2.31.0  \
     # urllib3-2.0.7
     && /opt/conda/envs/py37/bin/pip install torchvision==0.14.1 \
+    # Using Commits on Aug 8, 2023.
     # MarkupSafe-2.1.3 Send2Trash-1.8.2 anndata-0.8.0 anyio-3.7.1 argon2-cffi-23.1.0 argon2-cffi-bindings-21.2.0
     # attrs-23.1.0 backcall-0.2.0 beautifulsoup4-4.12.2 bleach-6.0.0 cellbender-0.3.0 cffi-1.15.1 click-8.1.7
     # comm-0.1.4 cycler-0.11.0 debugpy-1.7.0 decorator-5.1.1 defusedxml-0.7.1 entrypoints-0.4 exceptiongroup-1.2.0

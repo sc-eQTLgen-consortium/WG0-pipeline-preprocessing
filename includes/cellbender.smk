@@ -10,7 +10,7 @@ def calculate_mem_per_thread_gb(wildcards, attempt):
     # -1 means we want to predict the memory usage.
     if config["cellbender"]["cellbender_memory"] == -1:
         # Find the estimated number of cells from CellRanger.
-        metrics_df = pd.read_csv(config["outputs"]["output_dir"] + "CellRanger_count/{sample}/outs/metrics_summary.csv".format(sample=wildcards.sample), sep=",", header=0, index_col=None)
+        metrics_df = pd.read_csv(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/metrics_summary.csv".format(sample=wildcards.sample), sep=",", header=0, index_col=None)
         estimated_number_of_cells = int(metrics_df["Estimated Number of Cells"][0].replace(",",""))
 
         # Calculate the memory usage.
@@ -24,8 +24,8 @@ def calculate_mem_per_thread_gb(wildcards, attempt):
 # multiple runs without removing previous runs.
 rule CellBender:
     input:
-        raw_h5 = config["outputs"]["output_dir"] + "CellRanger_count/{sample}/outs/raw_feature_bc_matrix.h5",
-        metrics_summary = config["outputs"]["output_dir"] + "CellRanger_count/{sample}/outs/metrics_summary.csv"
+        raw_h5 = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/raw_feature_bc_matrix.h5",
+        metrics_summary = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/metrics_summary.csv"
     output:
         settings = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/CellBender_settings.json",
         checkpoint = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/ckpt.tar.gz",
@@ -117,7 +117,7 @@ rule CellBender:
             {params.estimator_multiple_cpu} \
             {params.constant_learning_rate} \
             {params.cpu_threads} \
-            --debug {params.debug}
+            {params.debug}
         
         singularity exec {params.nv} --bind {params.bind} {params.sif} cellbender remove-background \
             --input {input.raw_h5} \
@@ -151,7 +151,7 @@ rule CellBender:
             {params.estimator_multiple_cpu} \
             {params.constant_learning_rate} \
             {params.cpu_threads} \
-            --debug {params.debug}
+            {params.debug}
         
         singularity exec --bind {params.bind} {params.sif} touch {output.done}
         """
@@ -161,7 +161,7 @@ rule CellBender:
 # with previous runs.
 rule plot_CellBender:
     input:
-        input_h5 = [config["outputs"]["output_dir"] + "CellRanger_count/{sample}/outs/raw_feature_bc_matrix.h5".format(sample=sample) for sample in CELLBENDER_SETTINGS.keys()],
+        input_h5 = [config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/raw_feature_bc_matrix.h5".format(sample=sample) for sample in CELLBENDER_SETTINGS.keys()],
         settings = [config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/CellBender_settings.json".format(sample=sample, run=run) for sample in CELLBENDER_SETTINGS.keys() for run in CELLBENDER_SETTINGS[sample].keys()],
         raw_h5 = [config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix.h5".format(sample=sample, run=run) for sample in CELLBENDER_SETTINGS.keys() for run in CELLBENDER_SETTINGS[sample].keys()],
         posterior_h5 = [config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix_posterior.h5".format(sample=sample, run=run) for sample in CELLBENDER_SETTINGS.keys() for run in CELLBENDER_SETTINGS[sample].keys()]

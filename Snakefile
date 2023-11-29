@@ -48,7 +48,7 @@ if not samplesheet_is_valid:
     exit("InvalidSampleSheet")
 
 logger.info("\tValid.")
-SAMPLES = SAMPLE_DF["Sample"]
+SAMPLES = SAMPLE_DF["Sample"].values.tolist()
 FASTQ_DICT = dict(zip(SAMPLE_DF["Sample"], SAMPLE_DF["Fastq"]))
 
 # Check if the reference transcriptome exists.
@@ -59,12 +59,12 @@ if not os.path.isdir(config["refs"]["ref_dir"] + config["refs_extra"]["transcrip
 # Create the aggregation file using for CellRanger_aggr.
 # This can be harded coded since CellRanger does not require manual selection.
 if len(SAMPLES) > 1:
-    aggregation_path = config["outputs"]["output_dir"] + "CellRanger_aggr/aggregation.csv"
+    aggregation_path = config["outputs"]["output_dir"] + "CellRanger/aggregation.csv"
     if not os.path.exists(aggregation_path):
-        if not os.path.isdir(config["outputs"]["output_dir"] + "CellRanger_aggr"):
-            os.mkdir(config["outputs"]["output_dir"] + "CellRanger_aggr")
-        aggregation_csv = pd.DataFrame({"sample": SAMPLES,
-                                        "molecule_h5": [config["outputs"]["output_dir"] + "/CellRanger_count/{sample}/outs/molecule_info.h5".format(sample=sample) for sample in SAMPLES]})
+        if not os.path.isdir(config["outputs"]["output_dir"] + "CellRanger"):
+            os.mkdir(config["outputs"]["output_dir"] + "CellRanger")
+        aggregation_csv = pd.DataFrame({"sample_id": SAMPLES,
+                                        "molecule_h5": [config["outputs"]["output_dir"] + "/CellRanger/{sample}/outs/molecule_info.h5".format(sample=sample) for sample in SAMPLES]})
         aggregation_csv.to_csv(aggregation_path, sep=",", index=False)
 
 def process_manual_selection_method(name, settings=None, extra_settings=None, settings_dtype=None, max_manual_runs=25):
@@ -221,10 +221,10 @@ input_files = []
 logger.info("Running CellRanger.")
 if len(SAMPLES) == 1:
     # One sample so no need to run CellRanger aggr.
-    input_files.append(config["outputs"]["output_dir"] + "CellRanger_count/{sample}/outs/web_summary.html".format(sample=SAMPLES[0]))
+    input_files.append(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/web_summary.html".format(sample=SAMPLES[0]))
 else:
     # Multiple samples so we do need to run CellRanger aggr.
-    input_files.append(config["outputs"]["output_dir"] + "CellRanger_aggr/outs/web_summary.html")
+    input_files.append(config["outputs"]["output_dir"] + "CellRanger/Aggregate/outs/web_summary.html")
 
 cellbender_passed = False
 CELLBENDER_REPORT_INDICES = []

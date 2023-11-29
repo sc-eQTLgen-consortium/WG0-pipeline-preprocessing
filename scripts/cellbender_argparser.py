@@ -2,7 +2,7 @@
 # Adapted from https://github.com/broadinstitute/CellBender/blob/master/cellbender/remove_background/argparser.py and
 # https://github.com/broadinstitute/CellBender/blob/master/cellbender/base_cli.py
 # Note that I filled in the default values from https://github.com/broadinstitute/CellBender/blob/master/cellbender/remove_background/consts.py
-# and removed the dest="" parameters.
+# , removed the dest="" parameters, and added the type=float for the fpr parameter.
 import argparse
 import importlib
 import json
@@ -131,6 +131,7 @@ subparser.add_argument("--ignore-features", nargs="+", type=int,
                             "entirely.  In the output count matrix, the "
                             "counts for these features will be unchanged.")
 subparser.add_argument("--fpr", nargs="+",
+                       type=float,
                        default=[0.01],
                        help="Target 'delta' false positive rate in [0, 1). "
                             "Use 0 for a cohort of samples which will be "
