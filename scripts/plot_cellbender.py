@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# Adapted from https://github.com/broadinstitute/CellBender/blob/master/cellbender/remove_background/report.py and
-# https://github.com/broadinstitute/CellBender/blob/master/cellbender/remove_background/data/io.py
+# Adapted from https://github.com/broadinstitute/CellBender/blob/master/cellbender/remove_background/report.py
 import argparse
 import os
 
@@ -9,7 +8,6 @@ parser.add_argument("--samples", required=True, nargs="+", type=str, help="")
 parser.add_argument("--input_h5", required=True, nargs="+", type=str, help="")
 parser.add_argument("--settings", required=True, nargs="+", type=str, help="")
 parser.add_argument("--raw_h5", required=True, nargs="+", type=str, help="")
-parser.add_argument("--posterior_h5", required=True, nargs="+", type=str, help="")
 parser.add_argument("--max_plots_per_page", required=False, default=5, type=int, help="")
 parser.add_argument("--out", required=True, type=str, help="The output directory where results will be saved.")
 args = parser.parse_args()
@@ -17,13 +15,12 @@ args = parser.parse_args()
 if not os.path.isdir(args.out):
     os.makedirs(args.out, exist_ok=True)
 
+from cellbender.remove_background.downstream import load_anndata_from_input, load_anndata_from_input_and_output
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import json
-import tables
-import scipy.sparse as sp
-import h5py
+import scipy.stats
 import torch
 
 
@@ -60,84 +57,186 @@ setting_abbr = {
     "debug": "debug"
 }
 
+def assess_overall_count_removal(adata):
+    cells = (adata.obs['cell_probability'] > 0.5)
+    initial_counts = adata.layers['raw'][cells].sum()
+    removed_counts = initial_counts - adata.layers['cellbender'][cells].sum()
+    removed_percentage = removed_counts / initial_counts * 100
 
-def get_matrix_from_cellranger_h5(filename):
-    # Detect CellRanger version.
-    with tables.open_file(filename, 'r') as f:
-        cellranger_version = 2
-        try:
-            # This works for version 3 but not for version 2.
-            getattr(f.root.matrix, 'features')
-            cellranger_version = 3
-        except tables.NoSuchNodeError:
-            pass
+    estimated_ambient_per_droplet = np.exp(adata.uns['empty_droplet_size_lognormal_loc']).item()
+    expected_fraction_removed_from_cells = estimated_ambient_per_droplet * cells.sum() / initial_counts
 
-    with tables.open_file(filename, 'r') as f:
-        # Initialize empty lists.
-        csc_list = []
+    fpr = adata.uns['target_false_positive_rate'].item()  # this is an np.ndarray with one element
+    cohort_mode = False
+    if type(fpr) != float:
+        cohort_mode = True
 
-        # CellRanger v2:
-        # Each group in the table (other than root) contains a genome,
-        # so walk through the groups to get data for each genome.
-        if cellranger_version == 2:
-            for group in f.walk_groups():
-                try:
-                    # Read in data for this genome, and put it into a
-                    # scipy.sparse.csc.csc_matrix
-                    data = getattr(group, 'data').read()
-                    indices = getattr(group, 'indices').read()
-                    indptr = getattr(group, 'indptr').read()
-                    shape = getattr(group, 'shape').read()
-                    csc_list.append(sp.csc_matrix((data, indices, indptr), shape=shape))
-                except tables.NoSuchNodeError:
-                    # This exists to bypass the root node, which has no data.
-                    pass
+    if not cohort_mode:
+        expected_percentage = (expected_fraction_removed_from_cells + fpr) * 100
+    else:
+        expected_percentage = expected_fraction_removed_from_cells * 100
 
-        # CellRanger v3:
-        # There is only the 'matrix' group.
-        elif cellranger_version == 3:
-            data = getattr(f.root.matrix, 'data').read()
-            indices = getattr(f.root.matrix, 'indices').read()
-            indptr = getattr(f.root.matrix, 'indptr').read()
-            shape = getattr(f.root.matrix, 'shape').read()
-            csc_list.append(sp.csc_matrix((data, indices, indptr), shape=shape))
+    if np.abs(expected_percentage - removed_percentage) <= 0.5:
+        return {"overall_count_removal": "great"}
+    elif np.abs(expected_percentage - removed_percentage) <= 1:
+        return {"overall_count_removal": "decent"}
+    elif np.abs(expected_percentage - removed_percentage) <= 5:
+        if removed_percentage < expected_percentage:
+            return {"overall_count_removal": "bit less"}
+        else:
+            return {"overall_count_removal": "bit more"}
+    elif removed_percentage - expected_percentage > 5:
+        return {"overall_count_removal": "more"}
+    elif expected_percentage - removed_percentage > 5:
+        return {"overall_count_removal": "fewer"}
 
-    # Put the data together (possibly from several genomes for v2 datasets).
-    count_matrix = sp.vstack(csc_list, format='csc')
-    count_matrix = count_matrix.transpose().tocsr()
+def assess_count_removal_per_gene(adata,
+                                  raw_full_adata,
+                                  input_layer_key='raw',
+                                  r_squared_cutoff=0.5):
+    # how well does it correlate with our expectation about the ambient RNA profile?
+    cells = (adata.obs['cell_probability'] > 0.5)
+    counts = np.array(raw_full_adata.X.sum(axis=1)).squeeze()
+    clims = [adata.obs[f'n_{input_layer_key}'][~cells].mean() / 2,
+             np.percentile(adata.obs[f'n_{input_layer_key}'][cells].values, q=2)]
+    # if all are called "cells" then clims[0] will be a nan
+    if np.isnan(clims[0]):
+        clims[0] = counts.min()
+    if 'approximate_ambient_profile' in adata.uns.keys():
+        approximate_ambient_profile = adata.uns['approximate_ambient_profile']
+    else:
+        empty_count_matrix = raw_full_adata[(counts > clims[0]) & (counts < clims[1])].X
+        if empty_count_matrix.shape[0] > 100:
+            approximate_ambient_profile = np.array(raw_full_adata[(counts > clims[0])
+                                                                  & (counts < clims[1])].X.mean(axis=0)).squeeze()
+        else:
+            # a very rare edge case I've seen once
+            approximate_ambient_profile = np.array(raw_full_adata[counts < clims[1]].X.mean(axis=0)).squeeze()
+        approximate_ambient_profile = approximate_ambient_profile / approximate_ambient_profile.sum()
+    y = adata.var['n_removed'] / adata.var['n_removed'].sum()
 
-    return count_matrix
+    cutoff = 1e-6
+    logic = np.logical_not((approximate_ambient_profile < cutoff) | (y < cutoff))
+    r_squared_result = scipy.stats.pearsonr(np.log(approximate_ambient_profile[logic]),
+                                            np.log(y[logic]))
+    if hasattr(r_squared_result, 'statistic'):
+        # scipy version 1.9.0+
+        r_squared = r_squared_result.statistic
+    else:
+        r_squared = r_squared_result[0]
+
+    if r_squared > r_squared_cutoff:
+        return {"per_gene_removal": "correct"}
+    else:
+        return {"per_gene_removal": "incorrect"}
+
+def assess_learning_curve(adata,
+                          spike_size: float = 0.5,
+                          deviation_size: float = 0.25,
+                          monotonicity_cutoff: float = 0.1):
+    warnings = {
+        "short_run": False,
+        "large_spikes_in_train": np.nan,
+        "large_deviation_in_train": np.nan,
+        "low_end_in_train": np.nan,
+        "non_monotonic": np.nan,
+        "backtracking": np.nan,
+        "runaway_test": np.nan,
+        "non_convergence": np.nan
+    }
+
+    if 'learning_curve_train_elbo' not in adata.uns.keys():
+        return warnings
+
+    if adata.uns['learning_curve_train_epoch'][-1] < 50:
+        warnings["short_run"] = True
+        return warnings
+
+    train_elbo_min_max = np.percentile(adata.uns['learning_curve_train_elbo'], q=[5, 95])
+    train_elbo_range = train_elbo_min_max.max() - train_elbo_min_max.min()
+
+    # look only from epoch 45 onward for spikes in train ELBO
+    warnings["large_spikes_in_train"] = np.any((adata.uns['learning_curve_train_elbo'][46:]
+                                                - adata.uns['learning_curve_train_elbo'][45:-1])
+                                               < -train_elbo_range * spike_size)
+
+    second_half_train_elbo = (adata.uns['learning_curve_train_elbo']
+                              [(len(adata.uns['learning_curve_train_elbo']) // 2):])
+    warnings["large_deviation_in_train"] = np.any(second_half_train_elbo
+                                                  < np.median(second_half_train_elbo)
+                                                  - train_elbo_range * deviation_size)
+
+    half = len(adata.uns['learning_curve_train_elbo']) // 2
+    threequarter = len(adata.uns['learning_curve_train_elbo']) * 3 // 4
+    typical_end_variation = np.std(adata.uns['learning_curve_train_elbo'][half:threequarter])
+    warnings["low_end_in_train"] = (adata.uns['learning_curve_train_elbo'][-1]
+                                    < adata.uns['learning_curve_train_elbo'].max() - 5 * typical_end_variation)
+
+    # look only from epoch 45 onward for spikes in train ELBO
+    non_monotonicity = ((adata.uns['learning_curve_train_elbo'][46:]
+                         - adata.uns['learning_curve_train_elbo'][45:-1])
+                        < -3 * typical_end_variation).sum() / len(adata.uns['learning_curve_train_elbo'])
+    warnings["non_monotonic"] = (non_monotonicity > monotonicity_cutoff)
+
+    def windowed_cumsum(x, n=20):
+        return np.array([np.cumsum(x[i:(i + n)])[-1] for i in range(len(x) - n)])
+
+    windowsize = 20
+    tracking_trace = windowed_cumsum(adata.uns['learning_curve_train_elbo'][1:]
+                                     - adata.uns['learning_curve_train_elbo'][:-1],
+                                     n=windowsize)
+    big_dip = -1 * (adata.uns['learning_curve_train_elbo'][-1]
+                    - adata.uns['learning_curve_train_elbo'][5]) / 10
+    warnings["backtracking"] = (tracking_trace.min() < big_dip)
+
+    halftest = len(adata.uns['learning_curve_test_elbo']) // 2
+    threequartertest = len(adata.uns['learning_curve_test_elbo']) * 3 // 4
+    typical_end_variation_test = np.std(adata.uns['learning_curve_test_elbo'][halftest:threequartertest])
+    warnings["runaway_test"] = (adata.uns['learning_curve_test_elbo'][-1]
+                                < adata.uns['learning_curve_test_elbo'].max() - 4 * typical_end_variation_test)
+
+    warnings["non_convergence"] = (np.mean([adata.uns['learning_curve_train_elbo'][-1]
+                                            - adata.uns['learning_curve_train_elbo'][-2],
+                                            adata.uns['learning_curve_train_elbo'][-2]
+                                            - adata.uns['learning_curve_train_elbo'][-3]])
+                                   > 2 * typical_end_variation)
+
+    return warnings
 
 
-def plot_settings(ax, settings, sample):
+def plot_table(ax, values, title):
     ax.axis('off')
     ax.axis('tight')
-    df = pd.DataFrame({setting_abbr[key]: str(value) for key, value in settings.items() if key in setting_abbr}, index=[0]).T
+    df = pd.DataFrame(values, index=[0]).T
     max_key_length = max([len(str(key)) for key in df.index])
     max_value_length = max([len(str(value)) for value in df[0]])
     total_length = max_key_length + max_value_length
     table = ax.table(cellText=df.values, colWidths=[total_length / max_key_length, total_length / max_value_length], rowLabels=df.index, loc='center', edges='open')
     table.auto_set_column_width(col=list(range(len(df.columns))))
     table.scale(1, 0.8)
-    ax.set_title(sample)
+    ax.set_title(title)
 
 
-def plot_train_error(ax, loss):
+def plot_train_error(adata, ax):
+    if 'learning_curve_train_elbo' not in adata.uns.keys():
+        print('No learning curve recorded!')
+        ax.set_axis_off()
+
     try:
-        ax.plot(loss['train']['elbo'], '.--', label='Train')
-
-        # Plot the test error, if there was held-out test data.
-        if 'test' in loss.keys():
-            if len(loss['test']['epoch']) > 0:
-                ax.plot(loss['test']['epoch'],
-                         loss['test']['elbo'], 'o:', label='Test')
-                ax.legend()
-
-        ylim_low = max(loss['train']['elbo'][0], loss['train']['elbo'][-1] - 2000)
+        ax.plot(adata.uns['learning_curve_train_epoch'],
+                adata.uns['learning_curve_train_elbo'], '.--', label='Train')
         try:
-            ylim_high = max(max(loss['train']['elbo']), max(loss['test']['elbo']))
+            ax.plot(adata.uns['learning_curve_test_epoch'],
+                    adata.uns['learning_curve_test_elbo'], 'o:', label='Test')
+            ax.legend()
+        except Exception:
+            pass
+
+        ylim_low = max(adata.uns['learning_curve_train_elbo'][0], adata.uns['learning_curve_train_elbo'][-1] - 2000)
+        try:
+            ylim_high = max(max(adata.uns['learning_curve_train_elbo']), max(adata.uns['learning_curve_test_elbo']))
         except ValueError:
-            ylim_high = max(loss['train']['elbo'])
+            ylim_high = max(adata.uns['learning_curve_train_elbo'])
         ylim_high = ylim_high + (ylim_high - ylim_low) / 20
         ax.set_ylim([ylim_low, ylim_high])
     except:
@@ -149,97 +248,100 @@ def plot_train_error(ax, loss):
     ax.set_title('Progress of the training procedure')
 
 
-def plot_barcodes_and_inferred_cell_prop(ax, umi_counts, p):
-    count_order = np.argsort(umi_counts)[::-1]
-    ax.semilogy(umi_counts[count_order], color='black')
+def plot_barcodes_and_inferred_cell_prop(adata, ax):
+    in_counts = np.array(adata.layers['raw'][:, adata.var['cellbender_analyzed']].sum(axis=1)).squeeze()
+    order = np.argsort(in_counts)[::-1]
+    ax.semilogy(in_counts[order], color='black')
     ax.set_ylabel('UMI counts')
     ax.set_xlabel('Barcode index, sorted by UMI count')
-    if p is not None:  # The case of a simple model.
-        right_ax = ax.twinx()
-        right_ax.plot(p[count_order], '.:', color='red', alpha=0.3, rasterized=True)
-        right_ax.set_ylabel('Cell probability', color='red')
-        right_ax.set_ylim([-0.05, 1.05])
-        ax.set_title('Determination of which barcodes contain cells')
-    else:
-        ax.set_title('The subset of barcodes used for training')
+    right_ax = ax.twinx()
+    right_ax.plot(adata.obs['cell_probability'][order].values, '.:', color='red', alpha=0.3, rasterized=True)
+    right_ax.set_ylabel('Cell probability', color='red')
+    right_ax.set_ylim([-0.05, 1.05])
+    ax.set_title('Determination of which barcodes contain cells')
 
 
-def plot_latent_encoding_z(ax, p, z):
-    if p is None:
-        p = np.ones(z.shape[0])
-
-    # Do PCA on the latent encoding z.
-    A = torch.as_tensor(z[p >= 0.5]).float()
-    U, S, V = torch.pca_lowrank(A)
-    z_pca = torch.matmul(A, V[:, :2])
+def plot_latent_encoding_z(adata, ax):
+    adata.obsm['X_pca'] = pca_2d(adata.obsm['cellbender_embedding']).detach().numpy()
 
     # Plot the latent encoding via PCA.
-    ax.plot(z_pca[:, 0], z_pca[:, 1], '.', ms=3, color='black', alpha=0.3, rasterized=True)
+    ax.plot(adata.obsm['X_pca'][:, 0], adata.obsm['X_pca'][:, 1], '.', ms=3, color='black', alpha=0.3, rasterized=True)
     ax.set_ylabel('PC 1')
     ax.set_xlabel('PC 0')
     ax.set_title('PCA of latent encoding of gene expression in cells')
 
 
+def pca_2d(mat: np.ndarray) -> torch.Tensor:
+    A = torch.as_tensor(mat).float()
+    U, S, V = torch.pca_lowrank(A)
+    return torch.matmul(A, V[:, :2])
+
 def plot_report(input_files, suffix="1"):
     nrows = len(input_files)
 
-    fig, axs = plt.subplots(nrows, 4, figsize=(24, 6 * nrows), gridspec_kw={"width_ratios": [0.1, 0.3, 0.3, 0.3]})
+    fig, axs = plt.subplots(nrows, 5, figsize=(30, 6 * nrows), gridspec_kw={"width_ratios": [0.05, 0.05, 0.3, 0.3, 0.3]})
     if nrows == 1:
         axs = axs[np.newaxis, ...]
 
-    for row_index, (sample, input_h5_path, settings_path, raw_h5_path, posterior_h5_path) in enumerate(input_files):
+    for row_index, (sample, input_h5_path, settings_path, raw_h5_path) in enumerate(input_files):
         print("\tRow {} - sample: {}:".format(row_index, sample))
         print("\t  --input_h5 {}".format(input_h5_path))
         print("\t  --settings {}".format(settings_path))
         print("\t  --raw_h5 {}".format(raw_h5_path))
-        print("\t  --posterior_h5 {}".format(posterior_h5_path))
         print("")
 
         fh = open(settings_path)
-        settings = json.load(fh)
+        settings = {setting_abbr[key]: str(value) for key, value in json.load(fh).items() if key in setting_abbr}
         fh.close()
-        plot_settings(
+        plot_table(
             ax=axs[row_index, 0],
-            settings=settings,
-            sample=sample
+            values=settings,
+            title=sample
         )
 
-        hf = h5py.File(raw_h5_path, 'r')
-        loss = {'train': {'epoch': np.array(hf.get('metadata/learning_curve_train_epoch')),
-                          'elbo': np.array(hf.get('metadata/learning_curve_train_elbo'))},
-                'test': {'epoch': np.array(hf.get('metadata/learning_curve_test_epoch')),
-                         'elbo': np.array(hf.get('metadata/learning_curve_test_elbo'))},
-                'learning_rate': {'epoch': np.array(hf.get('metadata/learning_rate_epoch')),
-                                  'value': np.array(hf.get('metadata/learning_rate_value'))}}
-        analyzed_barcode_inds = np.array(hf.get('metadata/barcodes_analyzed_inds'))
-        analyzed_gene_inds = np.array(hf.get('metadata/features_analyzed_inds'))
-        hf.close()
+        # load datasets, before and after CellBender
+        adata = load_anndata_from_input_and_output(input_file=input_h5_path,
+                                                   output_file=raw_h5_path,
+                                                   analyzed_barcodes_only=True,
+                                                   input_layer_key='raw',
+                                                   truth_file=None)
+        raw_full_adata = load_anndata_from_input(input_h5_path)
 
-        plot_train_error(
+        # bit of pre-compute
+        adata.var['n_removed'] = adata.var[f'n_raw'] - adata.var[f'n_cellbender']
+
+        warnings = {}
+        try:
+            warnings.update(assess_overall_count_removal(adata))
+        except ValueError:
+            print('Skipping assessment over overall count removal. Presumably '
+                  'this is due to including the whole dataset in '
+                  '--total-droplets-included.')
+
+        try:
+            warnings.update(assess_learning_curve(adata))
+        except Exception:
+            pass
+
+        # look at per-gene count removal
+        warnings.update(assess_count_removal_per_gene(adata, raw_full_adata=raw_full_adata))
+
+        plot_table(
             ax=axs[row_index, 1],
-            loss=loss
+            values=warnings,
+            title="Warnings"
         )
-
-        hf = h5py.File(posterior_h5_path, 'r')
-        p = np.array(hf.get('droplet_latents_map/p'))
-        z = np.array(hf.get('droplet_latents_map/z'))
-        hf.close()
-
-        count_matrix = get_matrix_from_cellranger_h5(input_h5_path)
-        trimmed_bc_matrix = count_matrix[analyzed_barcode_inds, :].tocsc()
-        trimmed_matrix = trimmed_bc_matrix[:, analyzed_gene_inds].tocsr()
-        counts = np.array(trimmed_matrix.sum(axis=1)).squeeze()
-
+        plot_train_error(
+            adata=adata,
+            ax=axs[row_index, 2]
+        )
         plot_barcodes_and_inferred_cell_prop(
-            ax=axs[row_index, 2],
-            umi_counts=counts,
-            p=p
+            adata=adata,
+            ax=axs[row_index, 3]
         )
-
         plot_latent_encoding_z(
-            ax=axs[row_index, 3],
-            p=p,
-            z=z
+            adata=adata,
+            ax=axs[row_index, 4]
         )
 
     fig.tight_layout()
@@ -250,7 +352,7 @@ def plot_report(input_files, suffix="1"):
 
 ################################################################################
 
-input_files = list(zip(args.samples, args.input_h5, args.settings, args.raw_h5, args.posterior_h5))
+input_files = list(zip(args.samples, args.input_h5, args.settings, args.raw_h5))
 input_files.sort()
 
 nplots = len(input_files)

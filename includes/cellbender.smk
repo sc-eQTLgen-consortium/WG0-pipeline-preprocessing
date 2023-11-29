@@ -188,7 +188,6 @@ rule plot_CellBender:
             --input_h5 {input.input_h5} \
             --settings {input.settings} \
             --raw_h5 {input.raw_h5} \
-            --posterior_h5 {input.posterior_h5} \
             --max_plots_per_page {params.max_plots_per_page} \
             --out {params.out} 
         """
