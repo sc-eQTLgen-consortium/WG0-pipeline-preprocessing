@@ -262,10 +262,17 @@ def plot_barcodes_and_inferred_cell_prop(adata, ax):
 
 
 def plot_latent_encoding_z(adata, ax):
+    cells = (adata.obs['cell_probability'] > 0.5)
     adata.obsm['X_pca'] = pca_2d(adata.obsm['cellbender_embedding']).detach().numpy()
 
     # Plot the latent encoding via PCA.
-    ax.plot(adata.obsm['X_pca'][:, 0], adata.obsm['X_pca'][:, 1], '.', ms=3, color='black', alpha=0.3, rasterized=True)
+    ax.plot(adata.obsm['X_pca'][:, 0][cells],
+            adata.obsm['X_pca'][:, 1][cells],
+            '.',
+            ms=3,
+            color='black',
+            alpha=0.3,
+            rasterized=True)
     ax.set_ylabel('PC 1')
     ax.set_xlabel('PC 0')
     ax.set_title('PCA of latent encoding of gene expression in cells')
@@ -325,6 +332,12 @@ def plot_report(input_files, suffix="1"):
 
         # look at per-gene count removal
         warnings.update(assess_count_removal_per_gene(adata, raw_full_adata=raw_full_adata))
+        has_warnings = False
+        for key, value in warnings.items():
+            if value is True or value == "incorrect" or value == "more" or value == "fewer":
+                has_warnings = True
+        warnings[" "] = ""
+        warnings["Warnings"] = has_warnings
 
         plot_table(
             ax=axs[row_index, 1],
