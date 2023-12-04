@@ -128,10 +128,17 @@ def process_manual_selection_method(name, settings=None, extra_settings=None, se
 
         # Check if each sample has exactly one FINISHED run with a PASSED flag, if so: we are done.
         passed_select_df = select_df.loc[(select_df["FINISHED"]) & (select_df["PASSED"]), :].copy()
-        if passed_select_df.shape[0] == len(SAMPLES) and len(set(passed_select_df["Sample"].values).symmetric_difference(set(SAMPLES))) == 0:
-            return True, [], dict(zip(passed_select_df["Sample"], passed_select_df["Run"])), {}
-        elif select_df["FINISHED"].all():
-            logger.info("\tAll expected output files are created. Please select the accepted run in the manual_selection file or add additional runs in the manual rerun file.")
+        if passed_select_df.shape[0] == len(SAMPLES) and len(set(passed_select_df["Pool"].values).symmetric_difference(set(SAMPLES))) == 0:
+            logger.info("\tAll expected output files are created and manual_selection file is accepted.")
+            return True, [], dict(zip(passed_select_df["Pool"], passed_select_df["Run"])), {}
+        elif passed_select_df.shape[0] < len(SAMPLES) or len(set(passed_select_df["Pool"].values).symmetric_difference(set(SAMPLES))) != 0:
+            logger.info("\tAll expected output files are created. Please select one accepted run for all samples in the manual_selection file or add additional runs in the manual rerun file.")
+        elif passed_select_df.shape[0] > len(SAMPLES):
+            logger.info("\tAll expected output files are created. Please select one accepted run for each sample in the manual_selection file or add additional runs in the manual rerun file.")
+        else:
+            # Should not happen.
+            pass
+
         del passed_select_df
     else:
         # In case the manual_selection.tsv does not exist or got corrupted we can regenerate it based on the files we can find

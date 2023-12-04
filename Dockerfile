@@ -13,7 +13,7 @@ LABEL about.documentation="https://github.com/sc-eQTLgen-consortium/WG0-pipeline
 LABEL about.tags="Genomics"
 
 # Build syntax: docker build ./ -t wg0-pipeline-preprocessing:2023.11.28.0 --progress=plain > build.log 2>&1
-# Total build takes ? minutes and has a size of 6.66 GB.
+# Total build takes 6 minutes and has a size of 6.66 GB.
 # Use dive wg0-pipeline-preprocessing:2023.11.28.0 to investigate memory usage.
 
 ################## MAINTAINER ######################
