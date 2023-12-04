@@ -24,37 +24,37 @@ import scipy.stats
 import torch
 
 
-setting_abbr = {
-    "use_cuda": "cuda",
-    "expected_cells": "expected_cell_count",
-    "total_droplets_included": "total_droplets",
-    "force_cell_umi_prior": "force_cell_umi_prior",
-    "force_empty_umi_prior": "force_empty_umi_prior",
-    "model": "model",
-    "epochs": "epochs",
-    "low_count_threshold": "low_count_threshold",
-    "z_dim": "z_hidden_dims",
-    "z_layers": "z_layers",
-    "training_fraction": "training_fraction",
-    "empty_drop_training_fraction": "fraction_empties",
-    "ignore_features": "blacklisted_genes",
-    "fpr": "fpr",
-    "exclude_feature_types": "exclude_features",
-    "projected_ambient_count_threshold": "ambient_counts_in_cells_low_limit",
-    "learning_rate": "learning_rate",
-    "checkpoint_mins": "checkpoint_min",
-    "final_elbo_fail_fraction": "final_elbo_fail_fraction",
-    "epoch_elbo_fail_fraction": "epoch_elbo_fail_fraction",
-    "num_training_tries": "num_training_tries",
-    "learning_rate_retry_mult": "learning_rate_retry_mult",
-    "posterior_batch_size": "posterior_batch_size",
-    # "posterior_regularization": "posterior_regularization",
-    "alpha": "prq_alpha",
-    "q": "cdf_threshold_q",
-    # "estimator": "estimator",
-    "estimator_multiple_cpu": "use_multiprocessing_estimation",
-    "constant_learning_rate": "constant_learning_rate",
-    "debug": "debug"
+settings_info = {
+    "use_cuda": ("cuda", None),
+    "expected_cells": ("expected_cell_count", None),
+    "total_droplets_included": ("total_droplets", None),
+    "force_cell_umi_prior": ("force_cell_umi_prior", None),
+    "force_empty_umi_prior": ("force_empty_umi_prior", None),
+    "model": ("model", "full"),
+    "epochs": ("epochs", 150),
+    "low_count_threshold": ("low_count_threshold", 5),
+    "z_dim":( "z_hidden_dims", 64),
+    "z_layers": ("z_layers", [512]),
+    "training_fraction": ("training_fraction", 0.9),
+    "empty_drop_training_fraction": ("fraction_empties", 0.2),
+    "ignore_features": ("blacklisted_genes", []),
+    "fpr": ("fpr", [0.01]),
+    "exclude_feature_types": ("exclude_features", []),
+    "projected_ambient_count_threshold": ("ambient_counts_in_cells_low_limit", 0.1),
+    "learning_rate": ("learning_rate", 1e-4),
+    "checkpoint_mins": ("checkpoint_min", 7.),
+    "final_elbo_fail_fraction": ("final_elbo_fail_fraction", None),
+    "epoch_elbo_fail_fraction": ("epoch_elbo_fail_fraction", None),
+    "num_training_tries": ("num_training_tries", 1),
+    "learning_rate_retry_mult": ("learning_rate_retry_mult", 0.2),
+    "posterior_batch_size": ("posterior_batch_size", 128),
+    # "posterior_regularization": ("posterior_regularization", None),
+    "alpha": ("prq_alpha", None),
+    "q": ("cdf_threshold_q", None),
+    # "estimator": ("estimator", None),
+    "estimator_multiple_cpu": ("use_multiprocessing_estimation", False),
+    "constant_learning_rate": ("constant_learning_rate", False),
+    "debug": ("debug", False)
 }
 
 def assess_overall_count_removal(adata):
@@ -204,7 +204,7 @@ def assess_learning_curve(adata,
     return warnings
 
 
-def plot_table(ax, values, title):
+def plot_table(ax, values, colors=None, title=""):
     ax.axis('off')
     ax.axis('tight')
     df = pd.DataFrame(values, index=[0]).T
@@ -214,6 +214,12 @@ def plot_table(ax, values, title):
     table = ax.table(cellText=df.values, colWidths=[total_length / max_key_length, total_length / max_value_length], rowLabels=df.index, loc='center', edges='open')
     table.auto_set_column_width(col=list(range(len(df.columns))))
     table.scale(1, 0.8)
+    if colors is not None:
+        for row_index in range(len(values)):
+            key = table[(row_index, -1)].get_text()
+            key.set_color(colors[key.get_text()])
+            value = table[(row_index, 0)].get_text()
+            value.set_color(colors[key.get_text()])
     ax.set_title(title)
 
 
@@ -298,11 +304,21 @@ def plot_report(input_files, suffix="1"):
         print("")
 
         fh = open(settings_path)
-        settings = {setting_abbr[key]: str(value) for key, value in json.load(fh).items() if key in setting_abbr}
+        settings = {}
+        colors = {}
+        for key, value in json.load(fh).items():
+            if key in settings_info:
+                new_key, default_value = settings_info[key]
+                settings[new_key] = str(value)
+                if str(value) == str(default_value):
+                    colors[new_key] = "black"
+                else:
+                    colors[new_key] = "red"
         fh.close()
         plot_table(
             ax=axs[row_index, 0],
             values=settings,
+            colors=colors,
             title=sample
         )
 
@@ -333,15 +349,22 @@ def plot_report(input_files, suffix="1"):
         # look at per-gene count removal
         warnings.update(assess_count_removal_per_gene(adata, raw_full_adata=raw_full_adata))
         has_warnings = False
+        colors = {}
         for key, value in warnings.items():
             if value is True or value == "incorrect" or value == "more" or value == "fewer":
                 has_warnings = True
-        warnings[" "] = ""
+                colors[key] = "red"
+            else:
+                colors[key] = "green"
+        warnings["--------"] = "--------"
         warnings["Warnings"] = has_warnings
+        colors["--------"] = "black"
+        colors["Warnings"] = "red" if has_warnings else "green"
 
         plot_table(
             ax=axs[row_index, 1],
             values=warnings,
+            colors=colors,
             title="Warnings"
         )
         plot_train_error(
