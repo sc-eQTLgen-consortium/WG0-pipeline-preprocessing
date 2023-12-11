@@ -47,7 +47,7 @@ rule CellBender:
     params:
         bind = config["inputs"]["bind_path"],
         sif = config["inputs"]["singularity_image"],
-        script = "/opt/WG0-pipeline-preprocessing/scripts/cellbender_argparser.py",
+        script = config["inputs"]["scripts_dir"] + "cellbender_argparser.py",
         out = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/",
         cuda = "--cuda" if config["settings"]["use_gpu"] else "",
         expected_cells = lambda wildcards: "--expected-cells " + CELLBENDER_SETTINGS[wildcards.sample][wildcards.run]["expected_cells"] if not math.isnan(CELLBENDER_SETTINGS[wildcards.sample][wildcards.run]["expected_cells"]) else "",
@@ -176,7 +176,7 @@ rule plot_CellBender:
     params:
         bind = config["inputs"]["bind_path"],
         sif = config["inputs"]["singularity_image"],
-        script = "/opt/WG0-pipeline-preprocessing/scripts/plot_cellbender.py",
+        script = config["inputs"]["scripts_dir"] + "plot_cellbender.py",
         samples = ["{sample}Run{run}".format(sample=sample, run=run) for sample in CELLBENDER_SETTINGS.keys() for run in CELLBENDER_SETTINGS[sample].keys()],
         max_plots_per_page = config["cellbender_extra"]["max_plots_per_page"],
         out = config["outputs"]["output_dir"] + "QC_figures/"

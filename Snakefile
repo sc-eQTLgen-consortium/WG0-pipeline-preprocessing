@@ -7,6 +7,8 @@ import math
 import os
 
 # Add trailing /.
+if not config["inputs"]["scripts_dir"].endswith("/"):
+    config["inputs"]["scripts_dir"] += "/"
 if not config["inputs"]["fastq_dir"].endswith("/"):
     config["inputs"]["fastq_dir"] += "/"
 if not config["refs"]["ref_dir"].endswith("/"):
@@ -126,17 +128,21 @@ def process_manual_selection_method(name, settings=None, extra_settings=None, se
             results_path = config["outputs"]["output_dir"] + "{name}/{sample}Run{run}/{name}.done".format(sample=row["Sample"], name=name, run=row["Run"])
             select_df.loc[index, "FINISHED"] = os.path.exists(results_path)
 
+        if select_df["FINISHED"].all():
+            logger.info("\tAll expected output files are created.")
+        else:
+            logger.info("\tWaiting on expected output files.")
+
         # Check if each sample has exactly one FINISHED run with a PASSED flag, if so: we are done.
         passed_select_df = select_df.loc[(select_df["FINISHED"]) & (select_df["PASSED"]), :].copy()
         if passed_select_df.shape[0] == len(SAMPLES) and len(set(passed_select_df["Pool"].values).symmetric_difference(set(SAMPLES))) == 0:
-            logger.info("\tAll expected output files are created and manual_selection file is accepted.")
             return True, [], dict(zip(passed_select_df["Pool"], passed_select_df["Run"])), {}
-        elif passed_select_df.shape[0] < len(SAMPLES) or len(set(passed_select_df["Pool"].values).symmetric_difference(set(SAMPLES))) != 0:
-            logger.info("\tAll expected output files are created. Please select one accepted run for all samples in the manual_selection file or add additional runs in the manual rerun file.")
-        elif passed_select_df.shape[0] > len(SAMPLES):
-            logger.info("\tAll expected output files are created. Please select one accepted run for each sample in the manual_selection file or add additional runs in the manual rerun file.")
+
+        if select_df["FINISHED"].all() and (passed_select_df.shape[0] < len(SAMPLES) or len(set(passed_select_df["Pool"].values).symmetric_difference(set(SAMPLES))) != 0):
+            logger.info("\tPlease select one accepted run for all samples in the manual_selection file or add additional runs in the manual rerun file.")
+        elif select_df["FINISHED"].all() and passed_select_df.shape[0] > len(SAMPLES):
+            logger.info("\tPlease select one accepted run for each sample in the manual_selection file or add additional runs in the manual rerun file.")
         else:
-            # Should not happen.
             pass
 
         del passed_select_df

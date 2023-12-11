@@ -309,7 +309,7 @@ def plot_report(input_files, suffix="1"):
         for key, value in json.load(fh).items():
             if key in settings_info:
                 new_key, default_value = settings_info[key]
-                settings[new_key] = str(value)
+                settings[new_key] = value
                 if str(value) == str(default_value):
                     colors[new_key] = "black"
                 else:

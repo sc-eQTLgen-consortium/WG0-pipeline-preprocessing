@@ -122,23 +122,6 @@ RUN eval "$(command conda 'shell.bash' 'hook' 2> /dev/null)" \
 
 RUN conda clean -y --all
 
-#######################################
-################ WG1-CODE #############
-#######################################
-
-# Always get our own newest software. IMPORTANT: make sure you use the correct branch here.
-# Delete all the non python / R files since we won't need them anyway.
-RUN cd /opt \
-    && GITHUB_BRANCH=scMetaBrain \
-    && wget https://github.com/sc-eQTLgen-consortium/WG0-pipeline-preprocessing/archive/refs/heads/${GITHUB_BRANCH}.zip \
-    && unzip -q ${GITHUB_BRANCH}.zip \
-    && rm ${GITHUB_BRANCH}.zip \
-    && mv WG0-pipeline-preprocessing-${GITHUB_BRANCH} WG0-pipeline-preprocessing \
-    && cd WG0-pipeline-preprocessing \
-    && find . -type f ! \( -iname \*.py -o -iname \*.R \) -delete \
-    && find . -type d -empty -delete \
-    && find . -type f \( -iname \*.py -o -iname \*.R \) -exec chmod 777 {} \;
-
 ####################################
 ################ CLEAN #############
 ####################################
