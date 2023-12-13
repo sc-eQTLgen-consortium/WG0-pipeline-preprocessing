@@ -28,6 +28,7 @@ rule CellBender:
         metrics_summary = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/metrics_summary.csv"
     output:
         settings = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/CellBender_settings.json",
+        tmpdir = directory(config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/tmp/"),
         checkpoint = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/ckpt.tar.gz",
         raw_h5 = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix.h5",
         filtered_h5 = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix_filtered.h5",
@@ -35,7 +36,7 @@ rule CellBender:
         posterior_h5 = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix_posterior.h5",
         metrics = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix_metrics.csv",
         figures = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix.pdf",
-        report = report(config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix_report.html", category="CellBender", subcategory="{sample}", caption="../report_captions/CellBender.rst"),
+        report = report(config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix_report.html", category="CellBender", subcategory="{sample}-Run{run}", caption=config["inputs"]["repo_dir"] + "report_captions/CellBender.rst"),
         log = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix.log",
         done = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/CellBender.done",
     resources:
@@ -47,7 +48,7 @@ rule CellBender:
     params:
         bind = config["inputs"]["bind_path"],
         sif = config["inputs"]["singularity_image"],
-        script = config["inputs"]["scripts_dir"] + "cellbender_argparser.py",
+        script = config["inputs"]["repo_dir"] + "scripts/cellbender_argparser.py",
         out = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/",
         cuda = "--cuda" if config["settings"]["use_gpu"] else "",
         expected_cells = lambda wildcards: "--expected-cells " + CELLBENDER_SETTINGS[wildcards.sample][wildcards.run]["expected_cells"] if not math.isnan(CELLBENDER_SETTINGS[wildcards.sample][wildcards.run]["expected_cells"]) else "",
@@ -119,6 +120,9 @@ rule CellBender:
             {params.cpu_threads} \
             {params.debug}
         
+        export TMPDIR={output.tmpdir}
+        mkdir $TMPDIR
+        
         singularity exec {params.nv} --bind {params.bind} {params.sif} cellbender remove-background \
             --input {input.raw_h5} \
             --output {output.raw_h5} \
@@ -152,6 +156,8 @@ rule CellBender:
             {params.constant_learning_rate} \
             {params.cpu_threads} \
             {params.debug}
+            
+        unset TMPDIR
         
         singularity exec --bind {params.bind} {params.sif} touch {output.done}
         """
@@ -166,7 +172,7 @@ rule plot_CellBender:
         raw_h5 = [config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix.h5".format(sample=sample, run=run) for sample in CELLBENDER_SETTINGS.keys() for run in CELLBENDER_SETTINGS[sample].keys()],
         posterior_h5 = [config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix_posterior.h5".format(sample=sample, run=run) for sample in CELLBENDER_SETTINGS.keys() for run in CELLBENDER_SETTINGS[sample].keys()]
     output:
-        figure = report(expand(config["outputs"]["output_dir"] + "QC_figures/CellBender_report.{index}.png", index=CELLBENDER_REPORT_INDICES), category="CellBender", caption="../report_captions/CellBender.rst")
+        figure = report(expand(config["outputs"]["output_dir"] + "QC_figures/CellBender_report.{index}.png", index=CELLBENDER_REPORT_INDICES), category="CellBender", caption=config["inputs"]["repo_dir"] + "report_captions/CellBender.rst")
     resources:
         mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellbender"]["plot_cellbender_memory"],
         disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellbender"]["plot_cellbender_memory"],
@@ -176,7 +182,7 @@ rule plot_CellBender:
     params:
         bind = config["inputs"]["bind_path"],
         sif = config["inputs"]["singularity_image"],
-        script = config["inputs"]["scripts_dir"] + "plot_cellbender.py",
+        script = config["inputs"]["repo_dir"] + "scripts/plot_cellbender.py",
         samples = ["{sample}Run{run}".format(sample=sample, run=run) for sample in CELLBENDER_SETTINGS.keys() for run in CELLBENDER_SETTINGS[sample].keys()],
         max_plots_per_page = config["cellbender_extra"]["max_plots_per_page"],
         out = config["outputs"]["output_dir"] + "QC_figures/"

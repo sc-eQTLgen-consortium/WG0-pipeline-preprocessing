@@ -30,7 +30,7 @@ rule CellRanger_count:
         raw_features = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/raw_feature_bc_matrix/features.tsv.gz",
         raw_matrix = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/raw_feature_bc_matrix/matrix.mtx.gz",
         raw_h5 = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/raw_feature_bc_matrix.h5",
-        web_summary = report(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/web_summary.html", category="CellRanger", subcategory="{sample}", caption="../report_captions/CellRanger.rst"),
+        web_summary = report(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/web_summary.html", category="CellRanger", subcategory="{sample}", caption=config["inputs"]["repo_dir"] + "report_captions/CellRanger.rst"),
         sc_rna_counter_cs = directory(config["outputs"]["output_dir"] + "CellRanger/{sample}/SC_RNA_COUNTER_CS/"),
     resources:
         localmem = lambda wildcards, attempt: (attempt * config["cellranger"]["cellranger_count_memory"] * config["cellranger"]["cellranger_count_threads"] - config["settings_extra"]["memory_buffer"]),
@@ -79,7 +79,7 @@ rule CellRanger_aggr:
         filtered_matrix = config["outputs"]["output_dir"] + "CellRanger/Aggregate/outs/count/filtered_feature_bc_matrix/matrix.mtx.gz",
         filtered_h5 = config["outputs"]["output_dir"] + "CellRanger/Aggregate/outs/count/filtered_feature_bc_matrix.h5",
         summary = config["outputs"]["output_dir"] + "CellRanger/Aggregate/outs/count/summary.json",
-        web_summary = report(config["outputs"]["output_dir"] + "CellRanger/Aggregate/outs/web_summary.html", category="CellRanger", subcategory="Aggregate",  caption="../report_captions/CellRanger.rst"),
+        web_summary = report(config["outputs"]["output_dir"] + "CellRanger/Aggregate/outs/web_summary.html", category="CellRanger", subcategory="Aggregate",  caption=config["inputs"]["repo_dir"] + "report_captions/CellRanger.rst"),
         sc_rna_aggregator_cs = directory(config["outputs"]["output_dir"] + "CellRanger/Aggregate/SC_RNA_AGGREGATOR_CS/")
     resources:
         localmem = lambda wildcards, attempt: (attempt * config["cellranger"]["cellranger_aggr_memory"] * config["cellranger"]["cellranger_aggr_threads"] - config["settings_extra"]["memory_buffer"]),

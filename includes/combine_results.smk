@@ -18,7 +18,7 @@ rule combine_results:
     params:
         bind = config["inputs"]["bind_path"],
         sif = config["inputs"]["singularity_image"],
-        script = config["inputs"]["scripts_dir"] + "combine_results.py",
+        script = config["inputs"]["repo_dir"] + "scripts/combine_results.py",
         samples = " ".join(SAMPLES),
         out = config["outputs"]["output_dir"] + "Combine_Results/",
     log: config["outputs"]["output_dir"] + "log/combine_results.log"
