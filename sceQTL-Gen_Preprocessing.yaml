@@ -3,10 +3,10 @@
 ##### The following arguments are for indicating file locations on your system #####
 ####################################################################################
 inputs:
-  singularity_image: /path/to/singularity/image.sif ### The complete path to the singularity image that has all the softwares
+  singularity_image: /path/to/singularity/image.sif ### The complete path to the singularity image that has all the software
   bind_path: /path/to/bind/to/mount ### List of paths to bind to Singularity. You can specify multiple directories by adding a "," between them. Eg. ${DIRECTORY1},${DIRECTORY2}
   repo_dir: /path/to/repo/dir/ ### Path to the github repository directory
-  samplesheet_path: /path/to/sample/metadata/file.tsv ### tab separated file that has a header. Each line has a pool name used for the scRNA-seq directories and the number of individuals in each pool
+  samplesheet_path: /path/to/sample/metadata/file.tsv ### tab separated file that has a header. Each line has a fastq file name and a sample file name
   fastq_dir: /path/to/10x/fastq/dir ### This is the path to the directory containing the 10x fastq files
 
 refs:
@@ -20,34 +20,34 @@ settings:
   use_gpu: True ### Whether or not a GPU is available for ambient RNA correction
   gpu_sbatch_settings: "" ### Fill in here the additional parameters for sbatch to submit the job to a GPU partition.
 
-cluster_time: {0: "05:59:00", 1: "23:59:00", 2: "6-23:59:00"}
+cluster_time: {0: "05:59:00", 1: "23:59:00", 2: "6-23:59:00"} ### Options for dynamic time usage for cluster submissions of jobs
 
 ##############################################################################################################
 ##### The following arguments are common parameters that may need to be changed depending on the dataset #####
 ##############################################################################################################
 cellranger:
-  cellranger_count_memory: 8 ###
-  cellranger_count_threads: 4 ###
-  cellranger_count_time: 0 ###
+  cellranger_count_memory: 8 ### The amount of memory (GB) used per thread for the CellRanger step
+  cellranger_count_threads: 4 ### The number threads that will be used for the CellRanger step
+  cellranger_count_time: 0 ### The time setting to use
 
-  cellranger_aggr_memory: 8 ###
-  cellranger_aggr_threads: 4 ###
-  cellranger_aggr_time: 0 ###
+  cellranger_aggr_memory: 8 ### The amount of memory (GB) used per thread for the CellRanger aggregate step
+  cellranger_aggr_threads: 4 ### The number threads that will be used for the CellRanger aggregate step
+  cellranger_aggr_time: 0 ### The time setting to use
 
 cellbender:
-  cellbender_memory: -1 ###
-  cellbender_threads: 1 ###
-  cellbender_gpu_time: 0 ###
-  cellbender_cpu_time: 1 ###
+  cellbender_memory: -1 ### The amount of memory (GB) used per thread for the CellBender step
+  cellbender_threads: 1 ### The number threads that will be used for the CellBender step
+  cellbender_gpu_time: 0 ### The time setting to use for GPU analysis
+  cellbender_cpu_time: 1 ### The time setting to use for CPU analysis
 
-  plot_cellbender_memory: 5 ###
-  plot_cellbender_threads: 1 ###
-  plot_cellbender_time: 0 ###
+  plot_cellbender_memory: 5 ### The amount of memory (GB) used per thread for the plot CellBender step
+  plot_cellbender_threads: 1 ### The number threads that will be used for the plot CellBender step
+  plot_cellbender_time: 0 ### The time setting to use
 
 combine_results:
-  combine_results_memory: 4 ###
-  combine_results_threads: 1 ###
-  combine_results_time: 0 ###
+  combine_results_memory: 4 ### The amount of memory (GB) used per thread for the combine step
+  combine_results_threads: 1 ### The number threads that will be used for the combine step
+  combine_results_time: 0 ### The time setting to use
 
 ############################################################################################################################################
 ##### The following arguments in this section should not need to be changed/edited unless the default options do not work your dataset #####
@@ -56,8 +56,8 @@ refs_extra:
   transcriptome_path: "refdata-gex-GRCh38-2020-A"
 
 cellbender_extra:
-  flat_memory: 3.5
-  scaling_memory: 0.0015
+  flat_memory: 3.5 ### Intercept parameter for linear equation to calculate memory usage for CellBender
+  scaling_memory: 0.0015 ### Slope parameter for linear equation to calculate memory usage for CellBender
 
   expected_cells: null ### Number of cells expected in the dataset (a rough estimate within a factor of 2 is sufficient).
   total_droplets_included: null ### The number of droplets from the rank-ordered UMI plot that will have their cell probabilities inferred as an output. Include the droplets which might contain cells. Droplets beyond TOTAL_DROPLETS_INCLUDED should be 'surely empty' droplets.
