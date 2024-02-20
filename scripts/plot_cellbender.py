@@ -4,16 +4,22 @@ import argparse
 import os
 
 parser = argparse.ArgumentParser(description="")
-parser.add_argument("--samples", required=True, nargs="+", type=str, help="")
-parser.add_argument("--input_h5", required=True, nargs="+", type=str, help="")
-parser.add_argument("--settings", required=True, nargs="+", type=str, help="")
-parser.add_argument("--raw_h5", required=True, nargs="+", type=str, help="")
+parser.add_argument("--cellbender_dir", required=True, type=str, help="")
+parser.add_argument("--cellbender_infolders", required=True, nargs="+", type=str, help="")
+parser.add_argument("--cellranger_dir", required=True, type=str, help="")
 parser.add_argument("--max_plots_per_page", required=False, default=5, type=int, help="")
 parser.add_argument("--out", required=True, type=str, help="The output directory where results will be saved.")
 args = parser.parse_args()
 
 if not os.path.isdir(args.out):
     os.makedirs(args.out, exist_ok=True)
+
+print("Options in effect:")
+arguments = {}
+for arg in vars(args):
+    print("  --{} {}".format(arg, getattr(args, arg)))
+    arguments[arg] = getattr(args, arg)
+print("")
 
 from cellbender.remove_background.downstream import load_anndata_from_input, load_anndata_from_input_and_output
 import matplotlib.pyplot as plt
@@ -289,28 +295,39 @@ def pca_2d(mat: np.ndarray) -> torch.Tensor:
     U, S, V = torch.pca_lowrank(A)
     return torch.matmul(A, V[:, :2])
 
-def plot_report(input_files, suffix="1"):
-    nrows = len(input_files)
+def plot_report(infolders, suffix="1"):
+    print("  Creating plot {}:".format(suffix))
+
+    nrows = len(infolders)
 
     fig, axs = plt.subplots(nrows, 5, figsize=(30, 6 * nrows), gridspec_kw={"width_ratios": [0.05, 0.05, 0.3, 0.3, 0.3]})
     if nrows == 1:
         axs = axs[np.newaxis, ...]
 
-    for row_index, (sample, input_h5_path, settings_path, raw_h5_path) in enumerate(input_files):
-        print("\tRow {} - sample: {}:".format(row_index, sample))
-        print("\t  --input_h5 {}".format(input_h5_path))
-        print("\t  --settings {}".format(settings_path))
-        print("\t  --raw_h5 {}".format(raw_h5_path))
+    for row_index, (infolder) in enumerate(infolders):
+        sample = os.path.basename(os.path.normpath(infolder)).split("Run")[0]
+        input_h5_path = os.path.join(args.cellranger_dir, sample, "outs", "raw_feature_bc_matrix.h5")
+        settings_path = os.path.join(args.cellbender_dir, infolder, "CellBender_settings.json")
+        raw_h5_path = os.path.join(args.cellbender_dir, infolder, "cellbender_feature_bc_matrix.h5")
+
+        print("    Row {}:".format(row_index))
+        print("    --infolder {}".format(infolder))
+        print("    --sample {}".format(sample))
+        print("    --input_h5_path {}".format(input_h5_path))
+        print("    --settings_path {}".format(settings_path))
+        print("    --raw_h5_path {}".format(raw_h5_path))
         print("")
 
         fh = open(settings_path)
         settings = {}
         colors = {}
         for key, value in json.load(fh).items():
+            value = str(value)
             if key in settings_info:
                 new_key, default_value = settings_info[key]
+                default_value = str(default_value)
                 settings[new_key] = value
-                if str(value) == str(default_value):
+                if value == default_value:
                     colors[new_key] = "black"
                 else:
                     colors[new_key] = "red"
@@ -340,7 +357,6 @@ def plot_report(input_files, suffix="1"):
             print('Skipping assessment over overall count removal. Presumably '
                   'this is due to including the whole dataset in '
                   '--total-droplets-included.')
-
         try:
             warnings.update(assess_learning_curve(adata))
         except Exception:
@@ -380,18 +396,21 @@ def plot_report(input_files, suffix="1"):
             ax=axs[row_index, 4]
         )
 
+        del settings, colors, adata, raw_full_adata, warnings
+
     fig.tight_layout()
     outfile = os.path.join(args.out, 'CellBender_report.{}.png'.format(suffix))
     plt.savefig(outfile, bbox_inches="tight")
-    return outfile
+    print("  Saved {}".format(outfile))
+    print("")
 
 
 ################################################################################
 
-input_files = list(zip(args.samples, args.input_h5, args.settings, args.raw_h5))
-input_files.sort()
+all_infolders = list(args.cellbender_infolders)
+all_infolders.sort()
 
-nplots = len(input_files)
+nplots = len(all_infolders)
 
 start_indices = [start_index for start_index in range(0, nplots, args.max_plots_per_page)]
 n_figures = len(start_indices)
@@ -399,9 +418,7 @@ start_indices.append(start_indices[-1] + args.max_plots_per_page)
 
 print("Plotting")
 for i in range(n_figures):
-    reportfile = plot_report(
-        input_files=input_files[start_indices[i]:start_indices[i + 1]],
+    plot_report(
+        infolders=all_infolders[start_indices[i]:start_indices[i + 1]],
         suffix=str(i)
     )
-    print("\tSaved {}".format(reportfile))
-    print("")

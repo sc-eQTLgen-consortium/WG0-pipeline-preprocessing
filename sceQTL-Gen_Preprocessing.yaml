@@ -34,6 +34,10 @@ cellranger:
   cellranger_aggr_threads: 4 ### The number threads that will be used for the CellRanger aggregate step
   cellranger_aggr_time: 0 ### The time setting to use
 
+  plot_cellranger_memory: 5 ### The amount of memory (GB) used per thread for the plot CellBender step
+  plot_cellranger_threads: 1 ### The number threads that will be used for the plot CellBender step
+  plot_cellranger_time: 0 ### The time setting to use
+
 cellbender:
   cellbender_memory: -1 ### The amount of memory (GB) used per thread for the CellBender step
   cellbender_threads: 1 ### The number threads that will be used for the CellBender step

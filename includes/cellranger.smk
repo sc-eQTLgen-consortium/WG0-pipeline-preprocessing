@@ -104,3 +104,32 @@ rule CellRanger_aggr:
             --localcores {threads} \
             --localmem {resources.localmem}
         """
+
+
+rule plot_CellRanger:
+    input:
+        metrics_summary = [config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/metrics_summary.csv".format(sample=sample) for sample in CELLBENDER_SETTINGS.keys()]
+    output:
+        summary = config["outputs"]["output_dir"] + "CellRanger/metrics_summary.tsv.gz",
+        figure = report(config["outputs"]["output_dir"] + "QC_figures/CellRanger_metrics.png", category="CellRanger", caption=config["inputs"]["repo_dir"] + "report_captions/CellRanger.rst")
+    resources:
+        mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["plot_cellranger_memory"],
+        disk_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["plot_cellranger_memory"],
+        time = lambda wildcards, attempt: config["cluster_time"][(attempt - 1) + config["cellranger"]["plot_cellranger_time"]],
+        gpu_sbatch_settings = ""
+    threads: config["cellranger"]["plot_cellranger_threads"]
+    params:
+        bind = config["inputs"]["bind_path"],
+        sif = config["inputs"]["singularity_image"],
+        script = config["inputs"]["repo_dir"] + "scripts/plot_cellranger.py",
+        cellranger_dir = config["outputs"]["output_dir"] + "CellRanger/",
+        cellranger_infolders = SAMPLES,
+        out = config["outputs"]["output_dir"] + "QC_figures/"
+    log: config["outputs"]["output_dir"] + "log/CellBenderCombinedResults.log"
+    shell:
+        """
+        singularity exec --bind {params.bind} {params.sif} python {params.script} \
+            --cellranger_dir {params.cellranger_dir} \
+            --cellranger_infolders {params.cellranger_infolders} \
+            --out {params.out} 
+        """

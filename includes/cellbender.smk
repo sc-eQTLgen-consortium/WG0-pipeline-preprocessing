@@ -11,7 +11,7 @@ def calculate_mem_per_thread_gb(wildcards, attempt):
     if config["cellbender"]["cellbender_memory"] == -1:
         # Find the estimated number of cells from CellRanger.
         metrics_df = pd.read_csv(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/metrics_summary.csv".format(sample=wildcards.sample), sep=",", header=0, index_col=None)
-        estimated_number_of_cells = int(metrics_df["Estimated Number of Cells"][0].replace(",",""))
+        estimated_number_of_cells = int(str(metrics_df["Estimated Number of Cells"][0]).replace(",",""))
 
         # Calculate the memory usage.
         return math.ceil((attempt * config["cellbender_extra"]["flat_memory"]) + (estimated_number_of_cells * config["cellbender_extra"]["scaling_memory"]))
@@ -183,17 +183,18 @@ rule plot_CellBender:
         bind = config["inputs"]["bind_path"],
         sif = config["inputs"]["singularity_image"],
         script = config["inputs"]["repo_dir"] + "scripts/plot_cellbender.py",
-        samples = ["{sample}Run{run}".format(sample=sample, run=run) for sample in CELLBENDER_SETTINGS.keys() for run in CELLBENDER_SETTINGS[sample].keys()],
+        cellbender_dir = config["outputs"]["output_dir"] + "CellBender/",
+        cellbender_infolders = ["{sample}Run{run}/".format(sample=sample, run=run) for sample in CELLBENDER_SETTINGS.keys() for run in CELLBENDER_SETTINGS[sample].keys()],
+        cellranger_dir = config["outputs"]["output_dir"] + "CellRanger/",
         max_plots_per_page = config["cellbender_extra"]["max_plots_per_page"],
         out = config["outputs"]["output_dir"] + "QC_figures/"
     log: config["outputs"]["output_dir"] + "log/CellBenderCombinedResults.log"
     shell:
         """
         singularity exec --bind {params.bind} {params.sif} python {params.script} \
-            --samples {params.samples} \
-            --input_h5 {input.input_h5} \
-            --settings {input.settings} \
-            --raw_h5 {input.raw_h5} \
+            --cellbender_dir {params.cellbender_dir} \
+            --cellbender_infolders {params.cellbender_infolders} \
+            --cellranger_dir {params.cellranger_dir} \
             --max_plots_per_page {params.max_plots_per_page} \
             --out {params.out} 
         """

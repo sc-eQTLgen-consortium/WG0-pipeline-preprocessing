@@ -242,10 +242,13 @@ if len(SAMPLES) == 1:
     input_files.append(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/web_summary.html".format(sample=SAMPLES[0]))
 else:
     # Multiple samples so we do need to run CellRanger aggr.
+    input_files.extend(expand(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/web_summary.html", sample=SAMPLES))
     input_files.append(config["outputs"]["output_dir"] + "CellRanger/Aggregate/outs/web_summary.html")
+input_files.extend([config["outputs"]["output_dir"] + "QC_figures/CellRanger_metrics.png"])
 
 cellbender_passed = False
 CELLBENDER_REPORT_INDICES = []
+CELLBENDER_SETTINGS = {}
 if config["settings"]["ambient_rna_correction"]:
     logger.info("Running CellBender on {}.".format("GPU" if config["settings"]["use_gpu"] else "CPU"))
     cellbender_passed, cellbender_output_folders, CELLBENDER_SELECTION, CELLBENDER_SETTINGS = process_manual_selection_method(
@@ -288,10 +291,11 @@ if config["settings"]["ambient_rna_correction"]:
     )
 
     if not cellbender_passed:
+        plot_index = 0
         for i in range(0, len(cellbender_output_folders), config["cellbender_extra"]["max_plots_per_page"]):
-            CELLBENDER_REPORT_INDICES.append(i)
-            input_files.extend([config["outputs"]["output_dir"] + "QC_figures/CellBender_report.{}.png".format(i)])
-
+            CELLBENDER_REPORT_INDICES.append(plot_index)
+            input_files.append(config["outputs"]["output_dir"] + "QC_figures/CellBender_report.{}.png".format(plot_index))
+            plot_index += 1
 
 if not config["settings"]["ambient_rna_correction"] or cellbender_passed:
     # End point of rule combine_results.
