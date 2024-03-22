@@ -14,7 +14,7 @@ def calculate_mem_per_thread_gb(wildcards, attempt):
         estimated_number_of_cells = int(str(metrics_df["Estimated Number of Cells"][0]).replace(",",""))
 
         # Calculate the memory usage.
-        return math.ceil((attempt * config["cellbender_extra"]["flat_memory"]) + (estimated_number_of_cells * config["cellbender_extra"]["scaling_memory"]))
+        return attempt * min(math.ceil((attempt * config["cellbender_extra"]["flat_memory"]) + (estimated_number_of_cells * config["cellbender_extra"]["scaling_memory"])), config["cellbender_extra"]["max_memory"])
     return attempt * config["cellbender"]["cellbender_memory"]
 
 
@@ -28,7 +28,7 @@ rule CellBender:
         metrics_summary = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/metrics_summary.csv"
     output:
         settings = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/CellBender_settings.json",
-        tmpdir = directory(config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/tmp/"),
+        tmpdir = temp(directory(config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/tmp/")),
         checkpoint = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/ckpt.tar.gz",
         raw_h5 = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix.h5",
         filtered_h5 = config["outputs"]["output_dir"] + "CellBender/{sample}Run{run}/cellbender_feature_bc_matrix_filtered.h5",

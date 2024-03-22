@@ -11,7 +11,7 @@ rule CellRanger_count:
     output:
         mri = config["outputs"]["output_dir"] + "CellRanger/{sample}/{sample}.mri.tgz",
         clustering_graph = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/analysis/clustering/gene_expression_graphclust/clusters.csv",
-        lustering_kmeans = expand(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/analysis/clustering/gene_expression_kmeans_{cluster}_clusters/clusters.csv", cluster=range(2,11), allow_missing=True),
+        clustering_kmeans = expand(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/analysis/clustering/gene_expression_kmeans_{cluster}_clusters/clusters.csv", cluster=range(2,11), allow_missing=True),
         diffexp_graph = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/analysis/diffexp/gene_expression_graphclust/differential_expression.csv",
         diffexp_kmeans = expand(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/analysis/diffexp/gene_expression_kmeans_{cluster}_clusters/differential_expression.csv", cluster=range(2,11), allow_missing=True),
         pca = expand(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/analysis/pca/gene_expression_10_components/{pca_file}.csv", pca_file=["components", "dispersion", "features_selected", "projection", "variance"], allow_missing=True),
@@ -58,7 +58,7 @@ rule CellRanger_count:
             --localmem {resources.localmem}
         """
 
-# This rules only function is to create a merged html file. If it turns out this html is not useful we can also delete this rule.
+
 rule CellRanger_aggr:
     input:
         csv = config["outputs"]["output_dir"] + "CellRanger/aggregation.csv",

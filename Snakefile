@@ -135,15 +135,13 @@ def process_manual_selection_method(name, settings=None, extra_settings=None, se
 
         # Check if each sample has exactly one FINISHED run with a PASSED flag, if so: we are done.
         passed_select_df = select_df.loc[(select_df["FINISHED"]) & (select_df["PASSED"]), :].copy()
-        if passed_select_df.shape[0] == len(SAMPLES) and len(set(passed_select_df["Pool"].values).symmetric_difference(set(SAMPLES))) == 0:
-            # TODO: perhaps this fixes the issue I expect trrying to generate a report from the HTML files
-            # for each run.
+        if passed_select_df.shape[0] == len(SAMPLES) and len(set(passed_select_df["Sample"].values).symmetric_difference(set(SAMPLES))) == 0:
             settings = {row["Sample"]: {} for _, row in select_df.iterrows()}
             for _, row in select_df.iterrows():
                 settings[row["Sample"]][str(row["Run"])] = row[all_settings].to_dict()
-            return True, [], dict(zip(passed_select_df["Pool"], passed_select_df["Run"])), settings
+            return True, [], dict(zip(passed_select_df["Sample"], passed_select_df["Run"])), settings
 
-        if select_df["FINISHED"].all() and (passed_select_df.shape[0] < len(SAMPLES) or len(set(passed_select_df["Pool"].values).symmetric_difference(set(SAMPLES))) != 0):
+        if select_df["FINISHED"].all() and (passed_select_df.shape[0] < len(SAMPLES) or len(set(passed_select_df["Sample"].values).symmetric_difference(set(SAMPLES))) != 0):
             logger.info("\tPlease select one accepted run for all samples in the manual_selection file or add additional runs in the manual rerun file.")
         elif select_df["FINISHED"].all() and passed_select_df.shape[0] > len(SAMPLES):
             logger.info("\tPlease select one accepted run for each sample in the manual_selection file or add additional runs in the manual rerun file.")
@@ -237,14 +235,11 @@ def process_manual_selection_method(name, settings=None, extra_settings=None, se
 input_files = []
 
 logger.info("Running CellRanger.")
-if len(SAMPLES) == 1:
-    # One sample so no need to run CellRanger aggr.
-    input_files.append(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/web_summary.html".format(sample=SAMPLES[0]))
-else:
-    # Multiple samples so we do need to run CellRanger aggr.
-    input_files.extend(expand(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/web_summary.html", sample=SAMPLES))
+input_files.extend(expand(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/web_summary.html", sample=SAMPLES))
+input_files.append(config["outputs"]["output_dir"] + "QC_figures/CellRanger_metrics.png")
+
+if config["settings"]["aggregate_cellranger"] and len(SAMPLES) > 1:
     input_files.append(config["outputs"]["output_dir"] + "CellRanger/Aggregate/outs/web_summary.html")
-input_files.extend([config["outputs"]["output_dir"] + "QC_figures/CellRanger_metrics.png"])
 
 cellbender_passed = False
 CELLBENDER_REPORT_INDICES = []

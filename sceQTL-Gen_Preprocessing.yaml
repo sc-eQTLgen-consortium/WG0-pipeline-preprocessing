@@ -16,6 +16,7 @@ outputs:
   output_dir: /path/to/parent/out/dir ### The path to the parent dir where you would like all outputs/results saved. This path must exist before running.
 
 settings:
+  aggregate_cellranger: False ### whether or not to aggregate all CellRanger runs.
   ambient_rna_correction: False ### Whether or not to perform abient RNA correction
   use_gpu: True ### Whether or not a GPU is available for ambient RNA correction
   gpu_sbatch_settings: "" ### Fill in here the additional parameters for sbatch to submit the job to a GPU partition.
@@ -62,6 +63,7 @@ refs_extra:
 cellbender_extra:
   flat_memory: 3.5 ### Intercept parameter for linear equation to calculate memory usage for CellBender
   scaling_memory: 0.0015 ### Slope parameter for linear equation to calculate memory usage for CellBender
+  max_memory: 90 ### Maximum memory usage for CellBender
 
   expected_cells: null ### Number of cells expected in the dataset (a rough estimate within a factor of 2 is sufficient).
   total_droplets_included: null ### The number of droplets from the rank-ordered UMI plot that will have their cell probabilities inferred as an output. Include the droplets which might contain cells. Droplets beyond TOTAL_DROPLETS_INCLUDED should be 'surely empty' droplets.
