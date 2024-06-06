@@ -16,15 +16,25 @@ if not config["refs"]["ref_dir"].endswith("/"):
 if not config["outputs"]["output_dir"].endswith("/"):
     config["outputs"]["output_dir"] += "/"
 
+# Function that quits the program.
+# This is seperated so I can ignore errors if I want to.
+if config["settings_extra"]["ignore_file_checks"]:
+    logger.warning("Ignoring errors, please note that this may cause rules to crash!\n")
+
+def stop(message):
+    if config["settings_extra"]["ignore_file_checks"]:
+        return
+    exit(message)
+
 # Check if the singularity image exists.
 if not os.path.exists(config["inputs"]["singularity_image"]):
     logger.info("Error, the singularity image does not exist.\n\nExiting.")
-    exit("MissingSIFFile")
+    stop("MissingSIFFile")
 
 # Check if the samplesheet exists.
 if not os.path.exists(config["inputs"]["samplesheet_path"]):
     logger.info("Error, the samplesheet file does not exist.\n\nExiting.")
-    exit("MissingSampleSheetFile")
+    stop("MissingSampleSheetFile")
 
 # Loading the input samplesheet.
 logger.info("Loading the input samplesheet")
@@ -36,7 +46,7 @@ SAMPLE_DF.index = SAMPLE_DF["Sample"]
 missing_columns = [column for column in ["Fastq", "Sample"] if not column in SAMPLE_DF.columns]
 if len(missing_columns) > 0:
     logger.info("\tError, missing columns {} in samplesheet file for the selected methods.".format(", ".join(missing_columns)))
-    exit()
+    stop("InvalidSampleSheet")
 
 # Check if the input samplesheet is valid.
 samplesheet_is_valid = True
@@ -47,7 +57,7 @@ for column in ["Fastq", "Sample"]:
 
 if not samplesheet_is_valid:
     logger.info("\n\nExiting.")
-    exit("InvalidSampleSheet")
+    stop("InvalidSampleSheet")
 
 logger.info("\tValid.")
 SAMPLES = SAMPLE_DF["Sample"].values.tolist()
@@ -56,7 +66,7 @@ FASTQ_DICT = dict(zip(SAMPLE_DF["Sample"], SAMPLE_DF["Fastq"]))
 # Check if the reference transcriptome exists.
 if not os.path.isdir(config["refs"]["ref_dir"] + config["refs_extra"]["transcriptome_path"]):
     logger.info("Could not find the {} file. Please check that the file exists.\n\nExiting.".format(config["refs"]["ref_dir"] + config["refs_extra"]["transcriptome_path"]))
-    exit("MissingReferenceFile")
+    stop("MissingReferenceFile")
 
 # Create the aggregation file using for CellRanger_aggr.
 # This can be harded coded since CellRanger does not require manual selection.

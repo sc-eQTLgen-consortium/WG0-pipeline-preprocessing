@@ -60,6 +60,10 @@ combine_results:
 refs_extra:
   transcriptome_path: "refdata-gex-GRCh38-2020-A"
 
+settings_extra:
+  ignore_file_checks: False ### Boolean to ignore missing file errors in the Snakefile.
+  memory_buffer: 1 ### Buffer to prevent memory overflow, available memory is reduced by this amount in GB
+
 cellbender_extra:
   flat_memory: 3.5 ### Intercept parameter for linear equation to calculate memory usage for CellBender
   scaling_memory: 0.0015 ### Slope parameter for linear equation to calculate memory usage for CellBender
@@ -94,7 +98,3 @@ cellbender_extra:
   debug: False ### Including the flag --debug will log extra messages useful for debugging.
 
   max_plots_per_page: 5 ### The number of lanes to plot on a single image
-
-settings_extra:
-  memory_buffer: 1 ### Buffer to prevent memory overflow, available memory is reduced by this amount in GB
-

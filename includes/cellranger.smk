@@ -31,7 +31,7 @@ rule CellRanger_count:
         raw_matrix = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/raw_feature_bc_matrix/matrix.mtx.gz",
         raw_h5 = config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/raw_feature_bc_matrix.h5",
         web_summary = report(config["outputs"]["output_dir"] + "CellRanger/{sample}/outs/web_summary.html", category="CellRanger", subcategory="{sample}", caption=config["inputs"]["repo_dir"] + "report_captions/CellRanger.rst"),
-        sc_rna_counter_cs = directory(config["outputs"]["output_dir"] + "CellRanger/{sample}/SC_RNA_COUNTER_CS/"),
+        sc_rna_counter_cs = temp(directory(config["outputs"]["output_dir"] + "CellRanger/{sample}/SC_RNA_COUNTER_CS/")),
     resources:
         localmem = lambda wildcards, attempt: (attempt * config["cellranger"]["cellranger_count_memory"] * config["cellranger"]["cellranger_count_threads"] - config["settings_extra"]["memory_buffer"]),
         mem_per_thread_gb = lambda wildcards, attempt: attempt * config["cellranger"]["cellranger_count_memory"],

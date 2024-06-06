@@ -121,7 +121,7 @@ rule CellBender:
             {params.debug}
         
         export TMPDIR={output.tmpdir}
-        mkdir $TMPDIR
+        mkdir -p $TMPDIR
         
         singularity exec {params.nv} --bind {params.bind} {params.sif} cellbender remove-background \
             --input {input.raw_h5} \
