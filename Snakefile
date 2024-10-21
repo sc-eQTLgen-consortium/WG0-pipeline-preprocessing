@@ -145,7 +145,7 @@ def process_manual_selection_method(name, settings=None, extra_settings=None, se
 
         # Check if each sample has exactly one FINISHED run with a PASSED flag, if so: we are done.
         passed_select_df = select_df.loc[(select_df["FINISHED"]) & (select_df["PASSED"]), :].copy()
-        if passed_select_df.shape[0] >= len(SAMPLES) and len(set(SAMPLES).difference(set(passed_select_df["Pool"].values))) == 0:
+        if passed_select_df.shape[0] >= len(SAMPLES) and len(set(SAMPLES).difference(set(passed_select_df["Sample"].values))) == 0:
             settings = {row["Sample"]: {} for _, row in select_df.iterrows()}
             for _, row in select_df.iterrows():
                 settings[row["Sample"]][str(row["Run"])] = row[all_settings].to_dict()

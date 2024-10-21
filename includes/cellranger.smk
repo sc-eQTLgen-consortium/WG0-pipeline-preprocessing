@@ -55,7 +55,7 @@ rule CellRanger_count:
             --sample {params.sample} \
             --transcriptome {input.transcriptome} \
             --localcores {threads} \
-            --localmem {resources.localmem}
+            --localmem {resources.localmem} > {log} 2>&1
         """
 
 
@@ -102,7 +102,7 @@ rule CellRanger_aggr:
             --id {params.id} \
             --csv {input.csv} \
             --localcores {threads} \
-            --localmem {resources.localmem}
+            --localmem {resources.localmem} > {log} 2>&1
         """
 
 
@@ -131,5 +131,5 @@ rule plot_CellRanger:
         singularity exec --bind {params.bind} {params.sif} python {params.script} \
             --cellranger_dir {params.cellranger_dir} \
             --cellranger_infolders {params.cellranger_infolders} \
-            --out {params.out} 
+            --out {params.out} > {log} 2>&1
         """

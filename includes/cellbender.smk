@@ -118,7 +118,7 @@ rule CellBender:
             {params.estimator_multiple_cpu} \
             {params.constant_learning_rate} \
             {params.cpu_threads} \
-            {params.debug}
+            {params.debug} > {log} 2>&1
         
         export TMPDIR={output.tmpdir}
         mkdir -p $TMPDIR
@@ -155,7 +155,7 @@ rule CellBender:
             {params.estimator_multiple_cpu} \
             {params.constant_learning_rate} \
             {params.cpu_threads} \
-            {params.debug}
+            {params.debug} >> {log} 2>&1
             
         unset TMPDIR
         
@@ -196,5 +196,5 @@ rule plot_CellBender:
             --cellbender_infolders {params.cellbender_infolders} \
             --cellranger_dir {params.cellranger_dir} \
             --max_plots_per_page {params.max_plots_per_page} \
-            --out {params.out} 
+            --out {params.out} > {log} 2>&1
         """

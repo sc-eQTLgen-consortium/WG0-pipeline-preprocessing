@@ -16,10 +16,10 @@ outputs:
   output_dir: /path/to/parent/out/dir ### The path to the parent dir where you would like all outputs/results saved. This path must exist before running.
 
 settings:
-  aggregate_cellranger: False ### whether or not to aggregate all CellRanger runs.
-  ambient_rna_correction: False ### Whether or not to perform abient RNA correction
-  use_gpu: True ### Whether or not a GPU is available for ambient RNA correction
-  gpu_sbatch_settings: "" ### Fill in here the additional parameters for sbatch to submit the job to a GPU partition.
+  aggregate_cellranger: False ### Boolean whether or not to aggregate all CellRanger runs
+  ambient_rna_correction: False ### Boolean whether or not to perform ambient RNA correction
+  use_gpu: True ### Boolean whether or not a GPU is available for ambient RNA correction
+  gpu_sbatch_settings: "" ### Fill in here the additional parameters for --cluster to submit the job to a GPU partition of your compute cluster
 
 cluster_time: {0: "05:59:00", 1: "23:59:00", 2: "6-23:59:00"} ### Options for dynamic time usage for cluster submissions of jobs
 
@@ -58,7 +58,7 @@ combine_results:
 ##### The following arguments in this section should not need to be changed/edited unless the default options do not work your dataset #####
 ############################################################################################################################################
 refs_extra:
-  transcriptome_path: "refdata-gex-GRCh38-2020-A"
+  transcriptome_path: "refdata-gex-GRCh38-2020-A" # The subdirectory within 'refs' - 'ref_dir' that contains the alignment reference.
 
 settings_extra:
   ignore_file_checks: False ### Boolean to ignore missing file errors in the Snakefile.
