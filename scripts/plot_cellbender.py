@@ -367,7 +367,7 @@ def plot_report(infolders, suffix="1"):
         has_warnings = False
         colors = {}
         for key, value in warnings.items():
-            if value is True or value == "incorrect" or value == "more" or value == "fewer":
+            if str(value) == "True" or value == "incorrect" or value == "more" or value == "fewer":
                 has_warnings = True
                 colors[key] = "red"
             else:
